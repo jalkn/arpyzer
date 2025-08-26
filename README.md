@@ -1,10 +1,10 @@
 # arpApp
 
-Es una App para Automizar Procesos de Auditoria (RPA).
+Es una App para Automizar Procesos de Excel
 
 # Link
 
-https://jalkn.github.io/arpApp/
+https://jalkn.github.io/arpyzer/
 
 ## Introduccion y contextualización
 
@@ -109,29 +109,12 @@ https://www.w3schools.com
 * Gemini AI Agent
 * Claude AI Agent
 
-## Certificaciones
-
-<table>
-  <tr>
-    <td><img src="./static/screenshots/certify/AWScloudCertificate.png" alt="aws" width="200px"></td>
-    <td><img src="./static/screenshots/certify/pythonCertificate.png" alt="python" width="200px"></td>
-    <td><img src="./static/screenshots/certify/sqlCertificate.png" alt="sql" width="200px"></td>
-    <td><img src="./static/screenshots/certify/pandasCertificate.png" alt="pandas" width="200px"></td>
-  </tr>
-  <tr>
-    <td><img src="./static/screenshots/certify/htmlCertificate.png" alt="html" width="200px"></td>
-    <td><img src="./static/screenshots/certify/CSScertificate.png" alt="css" width="200px"></td>
-    <td><img src="./static/screenshots/certify/phpCertificate.png" alt="php" width="200px"></td>
-    <td><img src="./static/screenshots/certify/degree.png" alt="Degree" width="200px"></td>
-  </tr>
-</table>
-
 ## Instalación
 
 1. Clona el repositorio:
 
 ```bash
-git clone https://github.com/jalknToth/arpApp.git
+git clone https://github.com/jalknToth/arpyzer.git
 ```
 
 2. Crear un entorno virtual
