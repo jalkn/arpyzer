@@ -731,17 +731,19 @@ class ImportView(LoginRequiredMixin, TemplateView):
             return status_info
 
         # --- Status for Personas.xlsx ---
+        """
         personas_status = get_file_status('Personas.xlsx')
         analysis_results.append(personas_status)
         if personas_status['status'] == 'success':
             context['person_count'] = personas_status['records']
 
         # --- Status for conflicts.xlsx ---
+        
         conflicts_status = get_file_status('conflicts.xlsx')
         analysis_results.append(conflicts_status)
         if conflicts_status['status'] == 'success':
             context['conflict_count'] = conflicts_status['records']
-
+        """
         # --- Status for tcs.xlsx ---
         tcs_excel_status = get_file_status('tcs.xlsx')
         analysis_results.append(tcs_excel_status)
@@ -759,6 +761,7 @@ class ImportView(LoginRequiredMixin, TemplateView):
 
         # --- Status for Nets.py output files ---
         analysis_results.append(get_file_status('PersonasTC.xlsx'))
+        """
         analysis_results.append(get_file_status('bankNets.xlsx'))
         analysis_results.append(get_file_status('debtNets.xlsx'))
         analysis_results.append(get_file_status('goodNets.xlsx'))
@@ -775,7 +778,7 @@ class ImportView(LoginRequiredMixin, TemplateView):
         analysis_results.append(idtrends_status)
         if idtrends_status['status'] == 'success':
             context['financial_report_count'] = idtrends_status['records']
-
+        """
 
         context['analysis_results'] = analysis_results
         return context
@@ -5622,7 +5625,9 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 </style>
 
 <div class="row g-3 mb-1">
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+    
+    <!-- Block commented out
+    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
         <div class="card h-100 border-0 shadow text-center">
             <div class="card-body pb-0">
                 <i class="fas fa-users fa-3x text-primary mb-2"></i>
@@ -5644,7 +5649,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
             </div>
         </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
         <div class="card h-100 border-0 shadow text-center">
             <div class="card-body pb-0">
                 <i class="fas fa-balance-scale fa-3x text-warning mb-2"></i>
@@ -5668,7 +5673,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
             </div>
         </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
         <div class="card h-100 border-0 shadow text-center">
             <div class="card-body pb-0">
                 <i class="fas fa-chart-line fa-3x text-success mb-2"></i>
@@ -5693,7 +5698,8 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
             </div>
         </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+    --> 
+    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
         <div class="card h-100 border-0 shadow text-center">
             <div class="card-body pb-0">
                 <i class="fas fa-users fa-3x text-info mb-2"></i>
@@ -5715,7 +5721,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
             </div>
         </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
         <div class="card h-100 border-0 shadow text-center">
             <div class="card-body pb-0">
                 <i class="fas fa-book fa-3x text-info mb-2"></i>
@@ -5739,11 +5745,11 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
         </div>
     </div>
 
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+    <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
         <div class="card h-100 border-0 shadow text-center">
             <div class="card-body pb-0">
                 <i class="far fa-credit-card fa-3x text-info mb-2"></i>
-                <h5 class="card-title">Tarjetasde Credito</h5>
+                <h5 class="card-title">Transacciones TC</h5>
                 <form method="post" enctype="multipart/form-data" action="{% url 'import_tcs' %}">
                     {% csrf_token %}
                     <div class="upload-form mb-2">
