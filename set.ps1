@@ -5251,7 +5251,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
         <a href="{% url 'tcs_list' %}" class="card h-100 shadow-sm border-0 text-decoration-none">
             <div class="card-body text-center p-4">
                 <i class="far fa-credit-card fa-3x text-info mb-3"></i>
-                <h5 class="card-title fw-normal mb-1">Tarjetas de Credito</h5>
+                <h5 class="card-title fw-normal mb-1">Transacciones TC</h5>
                 <h2 class="card-text fw-bold text-dark">{{ tc_count|intcomma }}</h2>
             </div>
         </a>
@@ -5571,7 +5571,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 <a href="{% url 'financial_report_list' %}" class="btn btn-custom-primary" title="Bienes y Rentas">
     <i class="fas fa-chart-line"></i>
 </a>
-<a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Tarjetas de credito">
+<a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Transacciones TC">
     <i class="far fa-credit-card"></i>
 </a>
 <a href="{% url 'conflict_list' %}" class="btn btn-custom-primary" title="Conflictos de Interes"> 
@@ -6478,7 +6478,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 {% load static %}
 
 {% block title %}Tarjetas{% endblock %}
-{% block navbar_title %}Tarjetas de Credito{% endblock %}
+{% block navbar_title %}Transacciones TC{% endblock %}
 
 {% block navbar_buttons %}
 <div class="ms-auto d-flex align-items-center gap-2">
@@ -6491,7 +6491,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     <a href="{% url 'financial_report_list' %}" class="btn btn-custom-primary" title="Bienes y Rentas">
         <i class="fas fa-chart-line"></i>
     </a>
-    <a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Tarjetas de credito">
+    <a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Transacciones TC">
         <i class="far fa-credit-card"></i>
     </a>
     <a href="{% url 'conflict_list' %}" class="btn btn-custom-primary" title="Conflictos de Interes">
@@ -6727,9 +6727,9 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         <tr>
                             <td colspan="18" class="text-center py-4" id="no-results-row">
                                 {% if request.GET.q or request.GET.compania or request.GET.numero_tarjeta or request.GET.fecha_transaccion_start or request.GET.fecha_transaccion_end or request.GET.category_filter %}
-                                    Sin transacciones de tarjetas de credito que coincidan con los filtros.
+                                    Sin transacciones TC que coincidan con los filtros.
                                 {% else %}
-                                    Sin transacciones de tarjetas de credito
+                                    Sin transacciones TC
                                 {% endif %}
                             </td>
                         </tr>
@@ -6920,7 +6920,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                 const tempRow = document.createElement('tr');
                 tempRow.className = 'js-no-results';
                 tempRow.innerHTML = <td colspan="18" class="text-center py-4">
-                    Sin transacciones de tarjetas de credito que coincidan con los filtros seleccionados.
+                    Sin transacciones de TC que coincidan con los filtros seleccionados.
                 </td>;
                 tableBody.appendChild(tempRow);
             }
@@ -8008,7 +8008,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 <a href="{% url 'financial_report_list' %}" class="btn btn-custom-primary" title="Bienes y Rentas">
     <i class="fas fa-chart-line"></i>
 </a>
-<a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Tarjetas de credito">
+<a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Transacciones TC">
     <i class="far fa-credit-card"></i>
 </a>
 <a href="{% url 'conflict_list' %}" class="btn btn-custom-primary" title="Conflictos de Interes"> 
@@ -8858,68 +8858,4 @@ gunicorn
 
 }
 
-function gCloud {
-
-    # --- Configuration ---
-    $PROJECT_ID = "arpa-473200"  # <<< REPLACE THIS
-    $SERVICE_NAME = "arpa-web-app"
-    $REGION = "us-central1" # Choose a region close to your users
-
-    Write-Host "🔐 Authenticating to Google Cloud..." -ForegroundColor Yellow
-    # Authenticate gcloud (if not already done)
-    gcloud auth configure-docker
-
-    Write-Host "🔧 Setting GCP Project and Region..." -ForegroundColor Yellow
-    gcloud config set project $PROJECT_ID
-    gcloud config set run/region $REGION
-
-    # --- Cloud Build and Push Image ---
-    $IMAGE_NAME = "gcr.io/$PROJECT_ID/$SERVICE_NAME"
-
-    Write-Host "📦 Building and Pushing Docker Image to Google Container Registry (GCR)..." -ForegroundColor Yellow
-    # Use gcloud build to build the Dockerfile and push it directly to GCR
-    # Cloud Build handles all system dependencies (like binutils) reliably.
-    gcloud builds submit --tag $IMAGE_NAME --quiet
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Cloud Build failed. Exiting deployment." -ForegroundColor Red
-        return
-    }
-
-# --- Deploy to Cloud Run ---
-    Write-Host "🚀 Deploying image to Google Cloud Run..." -ForegroundColor Yellow
-
-    # Arguments for gcloud run deploy command, using an array for robust parsing
-    $DeployArgs = @(
-        $SERVICE_NAME
-        "--image"
-        $IMAGE_NAME
-        "--platform"
-        "managed"
-        "--region"
-        $REGION
-        "--allow-unauthenticated"
-        "--port"
-        "8080"
-        "--memory"
-        "1Gi"
-        "--quiet"
-    )
-
-    # Execute the gcloud command using the argument array
-    gcloud run deploy @DeployArgs
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ Cloud Run deployment failed. Exiting deployment." -ForegroundColor Red
-        return
-    }
-
-    # --- Final Output ---
-    Write-Host "✅ Deployment Complete!" -ForegroundColor Green
-    Write-Host "Service URL:" -ForegroundColor Green
-    gcloud run services describe $SERVICE_NAME --platform managed --region $REGION --format 'value(status.url)'
-
-}
-
 arpa
-#gCloud
