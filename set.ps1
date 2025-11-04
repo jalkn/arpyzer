@@ -780,6 +780,23 @@ class ImportView(LoginRequiredMixin, TemplateView):
             context['financial_report_count'] = idtrends_status['records']
         """
 
+        # Expose PersonasTC.xlsx record count to the template as 'personas_tc_count' when available
+        personas_tc_count = 0
+        for r in analysis_results:
+            if not isinstance(r, dict):
+                continue
+            if r.get('filename') == 'PersonasTC.xlsx':
+                try:
+                    if r.get('status') == 'success':
+                        personas_tc_count = int(r.get('records') or 0)
+                    else:
+                        personas_tc_count = 0
+                except Exception:
+                    personas_tc_count = 0
+                break
+
+        context['personas_tc_count'] = personas_tc_count
+
         context['analysis_results'] = analysis_results
         return context
 
@@ -5571,15 +5588,15 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 <a href="{% url 'person_list' %}" class="btn btn-custom-primary" title="Personas">
     <i class="fas fa-users"></i>
 </a>
-<a href="{% url 'financial_report_list' %}" class="btn btn-custom-primary" title="Bienes y Rentas">
+<!--<a href="{% url 'financial_report_list' %}" class="btn btn-custom-primary" title="Bienes y Rentas">
     <i class="fas fa-chart-line"></i>
-</a>
+</a>--> 
 <a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Transacciones TC">
     <i class="far fa-credit-card"></i>
 </a>
-<a href="{% url 'conflict_list' %}" class="btn btn-custom-primary" title="Conflictos de Interes"> 
+<!--<a href="{% url 'conflict_list' %}" class="btn btn-custom-primary" title="Conflictos de Interes"> 
     <i class="fas fa-balance-scale"></i>
-</a>
+</a>--> 
 <a href="{% url 'alerts_list' %}" class="btn btn-custom-primary" title="Alertas">
     <i class="fas fa-bell"></i>
 </a>
@@ -5702,8 +5719,8 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
         <div class="card h-100 border-0 shadow text-center">
             <div class="card-body pb-0">
-                <i class="fas fa-users fa-3x text-info mb-2"></i>
-                <h5 class="card-title">PersonasTC</h5>
+                <i class="fas fa-users fa-3x text-primary mb-2"></i>
+                <h5 class="card-title">Personas TC</h5>
                 <form method="post" enctype="multipart/form-data" action="{% url 'import_personas_tc' %}">
                     {% csrf_token %}
                     <div class="upload-form mb-2">
@@ -5724,7 +5741,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     <div class="col-lg-4 col-md-6 col-sm-12 mb-4">
         <div class="card h-100 border-0 shadow text-center">
             <div class="card-body pb-0">
-                <i class="fas fa-book fa-3x text-info mb-2"></i>
+                <i class="fas fa-book fa-3x text-warning mb-2"></i>
                 <h5 class="card-title">Categorias</h5>
                 <form method="post" enctype="multipart/form-data" action="{% url 'import_categorias' %}" id="categorias-form">
                     {% csrf_token %}
