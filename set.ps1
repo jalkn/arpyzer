@@ -5147,6 +5147,17 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <link rel="stylesheet" href="{% static 'css/freeze.css' %}">
+    <style>
+        /* Custom styles for alert messages */
+        .alert {
+            background-color: #fff3cd !important;  /* Light yellow background */
+            border-color: #ffeeba !important;
+            color: #856404 !important;
+        }
+        .alert .btn-close {
+            color: #856404 !important;
+        }
+    </style>
 </head>
 <body>
     {% if user.is_authenticated %}

@@ -1,0 +1,466 @@
+{% extends "master.html" %}
+{% load static %}
+
+{% block title %}Tarjetas{% endblock %}
+{% block navbar_title %}Transacciones TC{% endblock %}
+
+{% block navbar_buttons %}
+<div class="ms-auto d-flex align-items-center gap-2">
+    <a href="/" class="btn btn-custom-primary" title="Dashboard">
+        <i class="fas fa-chart-pie"></i>
+    </a>
+    <a href="{% url 'person_list' %}" class="btn btn-custom-primary" title="Personas">
+        <i class="fas fa-users"></i>
+    </a>
+    <!--<a href="{% url 'financial_report_list' %}" class="btn btn-custom-primary" title="Bienes y Rentas">
+        <i class="fas fa-chart-line"></i>
+    </a>-->
+    <a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Transacciones TC">
+        <i class="far fa-credit-card"></i>
+    </a>
+    <!--<a href="{% url 'conflict_list' %}" class="btn btn-custom-primary" title="Conflictos de Interes">
+        <i class="fas fa-balance-scale"></i>
+    </a>-->
+    <a href="{% url 'alerts_list' %}" class="btn btn-custom-primary" title="Alertas">
+        <i class="fas fa-bell"></i>
+    </a>
+    <a href="{% url 'import' %}" class="btn btn-custom-primary" title="Importar">
+        <i class="fas fa-database"></i> 
+    </a>
+    <a href="{% url 'export_credit_card_excel' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-custom-primary" title="Exportar a Excel">
+        <i class="fas fa-file-excel"></i>
+    </a>
+    <form method="post" action="{% url 'logout' %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-custom-primary" title="Cerrar sesion">
+            <i class="fas fa-sign-out-alt"></i>
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4 border-0 shadow" style="background-color:rgb(224, 224, 224);">
+    <div class="card-body">
+        <form method="get" action="." class="row g-3 align-items-center" id="filter-form">
+            <div class="d-flex align-items-center">
+                <span class="badge bg-success">
+                    {{ page_obj.paginator.count }} registros
+                </span>
+                {% if request.GET.q or request.GET.compania or request.GET.numero_tarjeta or request.GET.fecha_transaccion_start or request.GET.fecha_transaccion_end %}
+                {% endif %}
+            </div>
+            
+            <div class="col-md-3">
+                <input type="text" 
+                       name="q" 
+                       class="form-control form-control-lg" 
+                       placeholder="Buscar cualquier valor..." 
+                       value="{{ request.GET.q }}"
+                       id="global-search-input">
+            </div>
+
+            <div class="col-md-2">
+                <select class="form-select form-select-lg" name="tipo_tarjeta" id="cardtype-filter-select">
+                    <option value="">Tipo Tarjeta</option>
+                    {% for tipo in tipos_tarjeta %}
+                        <option value="{{ tipo }}" {% if request.GET.tipo_tarjeta == tipo %}selected{% endif %}>{{ tipo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <select class="form-select form-select-lg" name="categoria" id="category-filter-select">
+                    <option value="">Categoria</option>
+                    {% for cat in categorias %}
+                        <option value="{{ cat }}" {% if request.GET.categoria == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <select class="form-select form-select-lg" name="subcategoria" id="subcategory-filter-select">
+                    <option value="">Subcategoría</option>
+                    {% for subcat in subcategorias %}
+                        <option value="{{ subcat }}" {% if request.GET.subcategoria == subcat %}selected{% endif %}>{{ subcat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-1">
+                <select class="form-select form-select-lg" name="zona" id="zona-filter-select">
+                    <option value="">Zona</option>
+                    {% for z in zonas %}
+                        <option value="{{ z }}" {% if request.GET.zona == z %}selected{% endif %}>{{ z }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2 d-flex gap-2 align-items-center">
+                <button type="submit" class="btn btn-primary btn-sm" title="Aplicar filtros de formulario">
+                    <i class="fas fa-filter"></i>
+                </button>
+                <a href="{% url 'tcs_list' %}" class="btn btn-secondary btn-sm" title="Quitar todos los filtros">
+                    <i class="fas fa-undo"></i>
+                </a>
+            </div>
+            
+            {% if request.GET.q or request.GET.tipo_tarjeta or request.GET.categoria or request.GET.subcategoria or request.GET.zona %}
+                <div class="mt-2">
+                    <span class="badge bg-info">
+                        Filtros activos:
+                        {% if request.GET.q %}<span class="badge bg-primary">Búsqueda: {{ request.GET.q }}</span>{% endif %}
+                        {% if request.GET.tipo_tarjeta %}<span class="badge bg-primary">Tipo: {{ request.GET.tipo_tarjeta }}</span>{% endif %}
+                        {% if request.GET.categoria %}<span class="badge bg-primary">Categoría: {{ request.GET.categoria }}</span>{% endif %}
+                        {% if request.GET.subcategoria %}<span class="badge bg-primary">Subcategoría: {{ request.GET.subcategoria }}</span>{% endif %}
+                        {% if request.GET.zona %}<span class="badge bg-primary">Zona: {{ request.GET.zona }}</span>{% endif %}
+                    </span>
+                </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow">
+    <div class="card-body p-0">
+        <div class="table-responsive table-container">
+            <table class="table table-striped table-hover mb-0" id="transactions-table">
+                <thead class="table-fixed-header">
+                    <tr>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=person__nombre_completo&sort_direction={% if current_order == 'person__nombre_completo' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Nombre
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=person__cargo&sort_direction={% if current_order == 'person__cargo' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Cargo
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=person__compania&sort_direction={% if current_order == 'person__compania' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Compania
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=person__area&sort_direction={% if current_order == 'person__area' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Area
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=tipo_tarjeta&sort_direction={% if current_order == 'tipo_tarjeta' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Tipo Tarjeta
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=numero_tarjeta&sort_direction={% if current_order == 'numero_tarjeta' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Numero de Tarjeta
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=moneda&sort_direction={% if current_order == 'moneda' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Moneda
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=trm_cierre&sort_direction={% if current_order == 'trm_cierre' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                TRM Cierre
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=valor_original&sort_direction={% if current_order == 'valor_original' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Valor Original
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=valor_cop&sort_direction={% if current_order == 'valor_cop' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Valor COP
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=numero_autorizacion&sort_direction={% if current_order == 'numero_autorizacion' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Numero de Autorizacion
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=fecha_transaccion&sort_direction={% if current_order == 'fecha_transaccion' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Fecha de Transaccion
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=dia&sort_direction={% if current_order == 'dia' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Dia
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=descripcion&sort_direction={% if current_order == 'descripcion' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Descripcion
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=categoria&sort_direction={% if current_order == 'categoria' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Categoria
+                            </a>
+                        </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=subcategoria&sort_direction={% if current_order == 'subcategoria' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Subcategoria
+                            </a>
+                        </th>
+                        <th id="zona-header">
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=zona&sort_direction={% if current_order == 'zona' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Zona
+                            </a>
+                        </th>
+                        <th class="table-fixed-column" style="color: rgb(0, 0, 0);">Ver</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in page_obj %}
+                        <tr>
+                            <td>{{ transaction.person.nombre_completo }}</td>
+                            <td>{{ transaction.person.cargo }}</td>
+                            <td>{{ transaction.person.compania }}</td>
+                            <td>{{ transaction.person.area }}</td>
+                            <td>{{ transaction.tipo_tarjeta }}</td>
+                            <td>{{ transaction.numero_tarjeta }}</td>
+                            <td>{{ transaction.moneda }}</td>
+                            <td>{{ transaction.trm_cierre }}</td>
+                            <td>{{ transaction.valor_original }}</td>
+                            <td>{{ transaction.valor_cop }}</td>
+                            <td>{{ transaction.numero_autorizacion }}</td>
+                            <td>{{ transaction.fecha_transaccion|date:"Y-m-d" }}</td>
+                            <td>{{ transaction.dia }}</td>
+                            <td>{{ transaction.descripcion }}</td>
+                            <td>{{ transaction.categoria }}</td> 
+                            <td>{{ transaction.subcategoria }}</td>
+                            <td>{{ transaction.zona }}</td>
+                            <td class="table-fixed-column">
+                                {% if transaction.person and transaction.person.cedula %}
+                                    <a href="{% url 'person_details' transaction.person.cedula %}"
+                                    class="btn btn-primary btn-sm"
+                                    title="View person details">
+                                        <i class="bi bi-person-vcard-fill"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">No person data</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="18" class="text-center py-4" id="no-results-row">
+                                {% if request.GET.q or request.GET.compania or request.GET.numero_tarjeta or request.GET.fecha_transaccion_start or request.GET.fecha_transaccion_end or request.GET.category_filter %}
+                                    Sin transacciones TC que coincidan con los filtros.
+                                {% else %}
+                                    Sin transacciones TC
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-light">
+        <nav>
+            <ul class="pagination justify-content-center mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="First">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a></li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" aria-label="Last">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+
+<script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Define elements
+        const categoryFilter = document.getElementById('category-filter-select');
+        const cardTypeFilter = document.getElementById('cardtype-filter-select');
+        const subcategoryFilter = document.getElementById('subcategory-filter-select');
+        const zonaFilter = document.getElementById('zona-filter-select'); // NEW
+        const tableBody = document.querySelector('#transactions-table tbody');
+        const rows = tableBody.getElementsByTagName('tr');
+        
+        // Define column indexes (0-indexed)
+        const CATEGORY_COLUMN_INDEX = 14; 
+        const CARD_TYPE_COLUMN_INDEX = 4;
+        const SUBCATEGORY_COLUMN_INDEX = 15;
+        const ZONA_COLUMN_INDEX = 16; // NEW
+
+        // 1. Populate the dropdowns with unique values from the current page's data
+        function populateFilters() {
+            const categories = new Set();
+            const cardTypes = new Set();
+            const subcategories = new Set();
+            const zonas = new Set(); // NEW
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                // Skip the "No transactions" row
+                const isNoResultsRow = row.querySelector('td[colspan="18"]');
+                if (isNoResultsRow) {
+                    continue; 
+                }
+                
+                // Collect values for all four columns
+                if (row.cells[CATEGORY_COLUMN_INDEX]) {
+                    const category = row.cells[CATEGORY_COLUMN_INDEX].textContent.trim();
+                    if (category) categories.add(category);
+                }
+                if (row.cells[CARD_TYPE_COLUMN_INDEX]) {
+                    const cardType = row.cells[CARD_TYPE_COLUMN_INDEX].textContent.trim();
+                    if (cardType) cardTypes.add(cardType);
+                }
+                if (row.cells[SUBCATEGORY_COLUMN_INDEX]) {
+                    const subcategory = row.cells[SUBCATEGORY_COLUMN_INDEX].textContent.trim();
+                    if (subcategory) subcategories.add(subcategory);
+                }
+                if (row.cells[ZONA_COLUMN_INDEX]) { // NEW
+                    const zona = row.cells[ZONA_COLUMN_INDEX].textContent.trim();
+                    if (zona) zonas.add(zona);
+                }
+            }
+            
+            // Function to append options to a select element
+            const appendOptions = (selectElement, values) => {
+                // Clear previous options (keep the "Filtrar por..." placeholder)
+                while (selectElement.options.length > 1) {
+                    selectElement.remove(1); 
+                }
+
+                // Sort and append the new options
+                Array.from(values).sort().forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    selectElement.appendChild(option);
+                });
+            };
+            
+            appendOptions(categoryFilter, categories);
+            appendOptions(cardTypeFilter, cardTypes);
+            appendOptions(subcategoryFilter, subcategories);
+            appendOptions(zonaFilter, zonas); // NEW
+        }
+        
+        // 2. Function to hide/show rows based on ALL selected filters
+        function filterTable() {
+            const selectedCategory = categoryFilter.value.toLowerCase().trim();
+            const selectedCardType = cardTypeFilter.value.toLowerCase().trim();
+            const selectedSubcategory = subcategoryFilter.value.toLowerCase().trim();
+            const selectedZona = zonaFilter.value.toLowerCase().trim(); // NEW
+            
+            let visibleRowCount = 0;
+            const initialEmpty = (rows.length === 1 && rows[0].querySelector('td[colspan="18"]'));
+
+            // Remove any previously added temporary "no results" message
+            const tempNoResults = tableBody.querySelector('.js-no-results');
+            if (tempNoResults) {
+                tempNoResults.remove();
+            }
+
+            // Loop through all table rows
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const isNoResultsRow = row.querySelector('td[colspan="18"]');
+
+                if (isNoResultsRow) {
+                    // Hide the original Django "No transactions" row if any filters are active
+                    if (!initialEmpty && (selectedCategory !== "" || selectedCardType !== "" || selectedSubcategory !== "" || selectedZona !== "")) {
+                        row.style.display = "none";
+                    } else if (initialEmpty && selectedCategory === "" && selectedCardType === "" && selectedSubcategory === "" && selectedZona === "") {
+                        // Keep the original Django message if the list was empty and no filter is selected
+                        row.style.display = "";
+                    }
+                    continue;
+                }
+
+                // Get cell values
+                const categoryCell = row.cells[CATEGORY_COLUMN_INDEX];
+                const cardTypeCell = row.cells[CARD_TYPE_COLUMN_INDEX];
+                const subcategoryCell = row.cells[SUBCATEGORY_COLUMN_INDEX];
+                const zonaCell = row.cells[ZONA_COLUMN_INDEX]; // NEW
+
+                // Check Category match
+                let categoryMatch = (selectedCategory === "" || (categoryCell && categoryCell.textContent.toLowerCase().trim() === selectedCategory));
+
+                // Check Tipo Tarjeta match
+                let cardTypeMatch = (selectedCardType === "" || (cardTypeCell && cardTypeCell.textContent.toLowerCase().trim() === selectedCardType));
+                
+                // Check Subcategoría match
+                let subcategoryMatch = (selectedSubcategory === "" || (subcategoryCell && subcategoryCell.textContent.toLowerCase().trim() === selectedSubcategory));
+                
+                // Check Zona match (NEW)
+                let zonaMatch = (selectedZona === "" || (zonaCell && zonaCell.textContent.toLowerCase().trim() === selectedZona));
+
+
+                // A row must match ALL active filters to be visible
+                if (categoryMatch && cardTypeMatch && subcategoryMatch && zonaMatch) {
+                    row.style.display = ""; // Show row
+                    visibleRowCount++;
+                } else {
+                    row.style.display = "none"; // Hide row
+                }
+            }
+
+            // 3. Display a temporary "no results" message if all data rows are hidden by the filter
+            if (visibleRowCount === 0 && !initialEmpty) {
+                const tempRow = document.createElement('tr');
+                tempRow.className = 'js-no-results';
+                tempRow.innerHTML = <td colspan="18" class="text-center py-4">
+                    Sin transacciones de TC que coincidan con los filtros seleccionados.
+                </td>;
+                tableBody.appendChild(tempRow);
+            }
+        }
+
+        // Initialize: Populate the filter dropdowns
+        populateFilters();
+
+        // Attach event listeners: Apply filter when any dropdown changes
+        categoryFilter.addEventListener('change', filterTable);
+        cardTypeFilter.addEventListener('change', filterTable);
+        subcategoryFilter.addEventListener('change', filterTable);
+        zonaFilter.addEventListener('change', filterTable); // NEW
+        
+        // Apply the filter on load
+        filterTable();
+    });
+</script>
+{% endblock %}

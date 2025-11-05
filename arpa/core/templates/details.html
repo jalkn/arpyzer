@@ -1,0 +1,527 @@
+{% extends "master.html" %}
+{% load static %}
+{% load humanize %}
+{% load my_filters %}
+
+{% block title %}Detalles - {{ myperson.nombre_completo }}{% endblock %}
+{% block navbar_title %}{{ myperson.nombre_completo }}{% endblock %}
+
+{% block navbar_buttons %}
+<a href="/" class="btn btn-custom-primary" title="Dashboard">
+    <i class="fas fa-chart-pie"></i>
+</a>
+<a href="{% url 'person_list' %}" class="btn btn-custom-primary" title="Personas">
+    <i class="fas fa-users"></i>
+</a>
+<!--<a href="{% url 'financial_report_list' %}" class="btn btn-custom-primary" title="Bienes y Rentas">
+    <i class="fas fa-chart-line"></i>
+</a>-->
+<a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Transacciones TC">
+    <i class="far fa-credit-card"></i>
+</a>
+<!--<a href="{% url 'conflict_list' %}" class="btn btn-custom-primary" title="Conflictos de Interes"> 
+    <i class="fas fa-balance-scale"></i>
+</a> -->
+<a href="{% url 'alerts_list' %}" class="btn btn-custom-primary" title="Alertas">
+    <i class="fas fa-bell"></i>
+</a>
+<a href="{% url 'import' %}" class="btn btn-custom-primary" title="Importar">
+    <i class="fas fa-database"></i> 
+</a>
+<form method="post" action="{% url 'logout' %}" class="d-inline">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-custom-primary" title="Cerrar sesion">
+        <i class="fas fa-sign-out-alt"></i>
+    </button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 mb-4"> {# Column for Informacion Personal - half width #}
+        <div class="card h-100"> {# Added h-100 for equal height #}
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Informacion Personal</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th>ID:</th>
+                        <td>{{ myperson.cedula|floatformat:"0" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Nombre:</th>
+                        <td>{{ myperson.nombre_completo }}</td>
+                    </tr>
+                    <tr>
+                        <th>Cargo:</th>
+                        <td>{{ myperson.cargo }}</td>
+                    </tr>
+                    <tr>
+                        <th>Area:</th>
+                        <td>{{ myperson.area }}</td>
+                    </tr>
+                    <tr>
+                        <th>Correo:</th>
+                        <td>{{ myperson.correo }}</td>
+                    </tr>
+                    <tr>
+                        <th>Compania:</th>
+                        <td>{{ myperson.compania }}</td>
+                    </tr>
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            <span class="badge bg-{% if myperson.estado == 'Activo' %}success{% else %}danger{% endif %}">
+                                {{ myperson.estado }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Por revisar:</th>
+                        <td>
+                            <form action="{% url 'toggle_revisar_status' myperson.cedula %}" method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="btn btn-link p-0 border-0 bg-transparent"
+                                        title="{% if myperson.revisar %}Desmarcar para Revisar{% else %}Marcar para Revisar{% endif %}">
+                                    <i class="fas fa-{% if myperson.revisar %}check-square text-warning{% else %}square text-secondary{% endif %}"
+                                    style="padding-left: 20px; font-size: 1.25rem;"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Comentarios:</th>
+                        <td>
+                            <div class="mb-3">
+                                <strong>Historial:</strong><br>
+                                <div id="comment-list" class="border p-2" style="max-height: 200px; overflow-y: auto;">
+                                    {% if myperson.comments %}
+                                        {% for comment_line in myperson.comments|split_lines %}
+                                            {% if comment_line %}
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <span>{{ comment_line }}</span>
+                                                    <form action="{% url 'delete_comment' myperson.cedula forloop.counter0 %}" method="post" style="display:inline;">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="btn btn-danger btn-sm" title="Eliminar Comentario">
+                                                            <i class="fas fa-trash-alt"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-muted">No hay comentarios existentes.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <form action="{% url 'save_comment' myperson.cedula %}" method="post">
+                                {% csrf_token %}
+                                <div class="form-group mt-3">
+                                    <label for="new_comment">Agregar nuevo comentario:</label>
+                                    <textarea class="form-control" id="new_comment" name="new_comment" rows="3" placeholder="Escribe tu comentario..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm mt-2">Comentar</button>
+                            </form>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4"> {# Column for Conflictos Declarados - half width #}
+        <div class="card h-100"> {# Added h-100 for equal height #}
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Conflictos Declarados</h5>
+                {% if conflicts %}
+                <div class="form-group">
+                    <label for="conflict-select" class="sr-only">Seleccionar Conflicto</label>
+                    <select class="form-control" id="conflict-select">
+                        {% for conflict in conflicts %}
+                            <option value="{{ forloop.counter0 }}">Fecha Declaracion: {{ conflict.fecha_inicio|date:"d/m/Y"|default:"-" }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if conflicts %}
+                {% for conflict in conflicts %}
+                <div class="conflict-table" id="conflict-table-{{ forloop.counter0 }}" {% if not forloop.first %}style="display: none;"{% endif %}>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <tbody>
+                                <tr>
+                                    <th scope="row">Fecha Declaracion</th>
+                                    <td>{{ conflict.fecha_inicio|date:"d/m/Y"|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Accionista de algun proveedor del grupo</th>
+                                    <td class="text-center">{% if conflict.q1 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q1_detalle and conflict.q1_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th> {# Empty header for alignment #}
+                                    <td><small class="text-muted">{{ conflict.q1_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Familiar de algun accionista, proveedor o empleado</th>
+                                    <td class="text-center">{% if conflict.q2 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q2_detalle and conflict.q2_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th>
+                                    <td><small class="text-muted">{{ conflict.q2_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Accionista de alguna compania del grupo</th>
+                                    <td class="text-center">{% if conflict.q3 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q3_detalle and conflict.q3_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th>
+                                    <td><small class="text-muted">{{ conflict.q3_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Actividades extralaborales</th>
+                                    <td class="text-center">{% if conflict.q4 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q4_detalle and conflict.q4_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th>
+                                    <td><small class="text-muted">{{ conflict.q4_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Negocios o bienes con empleados del grupo</th>
+                                    <td class="text-center">{% if conflict.q5 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q5_detalle and conflict.q5_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th>
+                                    <td><small class="text-muted">{{ conflict.q5_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Participacion en juntas o consejos directivos</th>
+                                    <td class="text-center">{% if conflict.q6 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q6_detalle and conflict.q6_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th>
+                                    <td><small class="text-muted">{{ conflict.q6_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Potencial conflicto diferente a los anteriores</th>
+                                    <td class="text-center">{% if conflict.q7 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q7_detalle and conflict.q7_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th>
+                                    <td><small class="text-muted">{{ conflict.q7_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Consciente del codigo de conducta empresarial</th>
+                                    <td class="text-center">{% if conflict.q8 %}<i style="color: green;">SI</i>{% else %}<i style="color: red;">NO</i>{% endif %}</td>
+                                </tr>
+                                {# Q8 and Q9 do not have detail fields, so no new rows for them #}
+                                <tr>
+                                    <th scope="row">Veracidad de la informacion consignada</th>
+                                    <td class="text-center">{% if conflict.q9 %}<i style="color: green;">SI</i>{% else %}<i style="color: RED;">NO</i>{% endif %}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Familiar de algun funcionario publico</th>
+                                    <td class="text-center">{% if conflict.q10 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q10_detalle and conflict.q10_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th>
+                                    <td><small class="text-muted">{{ conflict.q10_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th scope="row">Relacion con el sector publico o funcionario publico</th>
+                                    <td class="text-center">{% if conflict.q11 %}<i style="color: red;">SI</i>{% else %}<i style="color: green;">NO</i>{% endif %}</td>
+                                </tr>
+                                {% if conflict.q11_detalle and conflict.q11_detalle|lower != "nan" %}
+                                <tr>
+                                    <th></th>
+                                    <td><small class="text-muted">{{ conflict.q11_detalle|linebreaksbr }}</small></td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-center py-4">No hay conflictos declarados disponibles</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row"> {# New row for Reportes Financieros #}
+    <div class="col-md-12 mb-4"> {# Full width column for Reportes Financieros #}
+        <div class="card">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Reportes Financieros</h5>
+                <div>
+                    <span class="badge bg-primary">{{ financial_reports.count }} periodos</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive table-container">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-fixed-header">
+                            <tr>
+                                <th>Ejercicio</th>
+                                <th scope="col">Variaciones</th>
+                                <th>Activos</th>
+                                <th>Pasivos</th>
+                                <th>Ingresos</th>
+                                <th>Patrimonio</th>
+                                <th>Banco</th>
+                                <th>Bienes</th>
+                                <th>Inversiones</th>
+                                <th>% Apalancamiento</th>
+                                <th>% Endeudamiento</th>
+                                <th>Indice</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in financial_reports %}
+                            <tr data-person-cedula="{{ myperson.cedula }}" data-ano-declaracion="{{ report.ano_declaracion|floatformat:"0" }}">
+                                <td>{{ report.ano_declaracion|floatformat:"0"|default:"-" }}</td>
+                                <th>Relativa</th>
+                                <td data-field="activos_var_rel"
+                                    {% if report.activos_var_rel and report.activos_var_rel|floatformat:"0"|add:0 >= 50 or report.activos_var_rel and report.activos_var_rel|floatformat:"0"|add:0 <= -50 %}
+                                        style="color: red;"
+                                    {% elif report.activos_var_rel and report.activos_var_rel|floatformat:"0"|add:0 >= 30 and report.activos_var_rel|floatformat:"0"|add:0 < 50 %}
+                                        style="color: green;"
+                                    {% elif report.activos_var_rel and report.activos_var_rel|floatformat:"0"|add:0 > -50 and report.activos_var_rel|floatformat:"0"|add:0 <= -30 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.activos_var_rel|default:"0" }}
+                                </td>
+                                <td data-field="pasivos_var_rel"
+                                    {% if report.pasivos_var_rel and report.pasivos_var_rel|floatformat:"0"|add:0 >= 50 or report.pasivos_var_rel and report.pasivos_var_rel|floatformat:"0"|add:0 <= -50 %}
+                                        style="color: red;"
+                                    {% elif report.pasivos_var_rel and report.pasivos_var_rel|floatformat:"0"|add:0 >= 30 and report.pasivos_var_rel|floatformat:"0"|add:0 < 50 %}
+                                        style="color: green;"
+                                    {% elif report.pasivos_var_rel and report.pasivos_var_rel|floatformat:"0"|add:0 > -50 and report.pasivos_var_rel|floatformat:"0"|add:0 <= -30 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.pasivos_var_rel|default:"0" }}
+                                </td>
+                                <td data-field="ingresos_var_rel"
+                                    {% if report.ingresos_var_rel and report.ingresos_var_rel|floatformat:"0"|add:0 >= 50 or report.ingresos_var_rel and report.ingresos_var_rel|floatformat:"0"|add:0 <= -50 %}
+                                        style="color: red;"
+                                    {% elif report.ingresos_var_rel and report.ingresos_var_rel|floatformat:"0"|add:0 >= 30 and report.ingresos_var_rel|floatformat:"0"|add:0 < 50 %}
+                                        style="color: green;"
+                                    {% elif report.ingresos_var_rel and report.ingresos_var_rel|floatformat:"0"|add:0 > -50 and report.ingresos_var_rel|floatformat:"0"|add:0 <= -30 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.ingresos_var_rel|default:"0" }}
+                                </td>
+                                <td data-field="patrimonio_var_rel"
+                                    {% if report.patrimonio_var_rel and report.patrimonio_var_rel|floatformat:"0"|add:0 >= 50 or report.patrimonio_var_rel and report.patrimonio_var_rel|floatformat:"0"|add:0 <= -50 %}
+                                        style="color: red;"
+                                    {% elif report.patrimonio_var_rel and report.patrimonio_var_rel|floatformat:"0"|add:0 >= 30 and report.patrimonio_var_rel|floatformat:"0"|add:0 < 50 %}
+                                        style="color: green;"
+                                    {% elif report.patrimonio_var_rel and report.patrimonio_var_rel|floatformat:"0"|add:0 > -50 and report.patrimonio_var_rel|floatformat:"0"|add:0 <= -30 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.patrimonio_var_rel|default:"0" }}
+                                </td>
+                                <td data-field="banco_saldo_var_rel"
+                                    {% if report.banco_saldo_var_rel and report.banco_saldo_var_rel|floatformat:"0"|add:0 >= 50 or report.banco_saldo_var_rel and report.banco_saldo_var_rel|floatformat:"0"|add:0 <= -50 %}
+                                        style="color: red;"
+                                    {% elif report.banco_saldo_var_rel and report.banco_saldo_var_rel|floatformat:"0"|add:0 >= 30 and report.banco_saldo_var_rel|floatformat:"0"|add:0 < 50 %}
+                                        style="color: green;"
+                                    {% elif report.banco_saldo_var_rel and report.banco_saldo_var_rel|floatformat:"0"|add:0 > -50 and report.banco_saldo_var_rel|floatformat:"0"|add:0 <= -30 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.banco_saldo_var_rel|default:"0" }}
+                                </td>
+                                <td data-field="bienes_var_rel"
+                                    {% if report.bienes_var_rel and report.bienes_var_rel|floatformat:"0"|add:0 >= 50 or report.bienes_var_rel and report.bienes_var_rel|floatformat:"0"|add:0 <= -50 %}
+                                        style="color: red;"
+                                    {% elif report.bienes_var_rel and report.bienes_var_rel|floatformat:"0"|add:0 >= 30 and report.bienes_var_rel|floatformat:"0"|add:0 < 50 %}
+                                        style="color: green;"
+                                    {% elif report.bienes_var_rel and report.bienes_var_rel|floatformat:"0"|add:0 > -50 and report.bienes_var_rel|floatformat:"0"|add:0 <= -30 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.bienes_var_rel|default:"0" }}
+                                </td>
+                                <td data-field="inversiones_var_rel"
+                                    {% if report.inversiones_var_rel and report.inversiones_var_rel|floatformat:"0"|add:0 >= 50 or report.inversiones_var_rel and report.inversiones_var_rel|floatformat:"0"|add:0 <= -50 %}
+                                        style="color: red;"
+                                    {% elif report.inversiones_var_rel and report.inversiones_var_rel|floatformat:"0"|add:0 >= 30 and report.inversiones_var_rel|floatformat:"0"|add:0 < 50 %}
+                                        style="color: green;"
+                                    {% elif report.inversiones_var_rel and report.inversiones_var_rel|floatformat:"0"|add:0 > -50 and report.inversiones_var_rel|floatformat:"0"|add:0 <= -30 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.inversiones_var_rel|default:"0" }}
+                                </td>
+                                <td data-field="apalancamiento_var_rel">{{ report.apalancamiento_var_rel|default:"0" }}</td>
+                                <td data-field="endeudamiento_var_rel">{{ report.endeudamiento_var_rel|default:"0" }}</td>
+                                <td data-field="aum_pat_subito"
+                                    {% if report.aum_pat_subito >= 2 %}
+                                        style="color: red;"
+                                    {% elif report.aum_pat_subito >= 1.5 and report.aum_pat_subito < 2 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.aum_pat_subito|default:"0" }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th></th>
+                                <th scope="col">Absoluta</th>
+                                <td data-field="activos_var_abs">{{ report.activos_var_abs|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="pasivos_var_abs">{{ report.pasivos_var_abs|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="ingresos_var_abs">{{ report.ingresos_var_abs|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="patrimonio_var_abs">{{ report.patrimonio_var_abs|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="banco_saldo_var_abs">{{ report.banco_saldo_var_abs|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="bienes_var_abs">{{ report.bienes_var_abs|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="inversiones_var_abs">{{ report.inversiones_var_abs|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="apalancamiento_var_abs">{{ report.apalancamiento_var_abs|default:"0" }}</td>
+                                <td data-field="endeudamiento_var_abs">{{ report.endeudamiento_var_abs|default:"0" }}</td>
+                                <td data-field="capital_var_abs">{{ report.capital_var_abs|floatformat:"0"|intcomma|default:"0" }}</td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <th scope="col">Total</th>
+                                <td data-field="activos">&#36;{{ report.activos|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="pasivos">&#36;{{ report.pasivos|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="ingresos">&#36;{{ report.ingresos|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="patrimonio">&#36;{{ report.patrimonio|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="banco_saldo">&#36;{{ report.banco_saldo|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="bienes">&#36;{{ report.bienes|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="inversiones">&#36;{{ report.inversiones|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="apalancamiento">{{ report.apalancamiento|floatformat:2|default:"0" }}</td>
+
+                                <td data-field="endeudamiento"
+                                    {% if report.endeudamiento and report.endeudamiento > 70 %}
+                                        style="color: red;"
+                                    {% elif report.endeudamiento and report.endeudamiento >= 50 and report.endeudamiento <= 70 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.endeudamiento|floatformat:"2"|default:"0" }}
+                                </td>
+                                
+                                <td data-field="capital">&#36;{{ report.capital|floatformat:"0"|intcomma|default:"0" }}</td>
+                            </tr>
+                            <tr>
+                                <th></th>
+                                <th scope="col">Cant.</th>
+                                <td>0</td>
+                                <td data-field="cant_deudas"
+                                    {% if report.cant_deudas >= 6 %}
+                                        style="color: red;"
+                                    {% elif report.cant_deudas >= 4 and report.cant_deudas < 6 %}
+                                        style="color: green;"
+                                    {% endif %}>
+                                    {{ report.cant_deudas|floatformat:"0"|intcomma|default:"0" }}
+                                </td>
+                                <td data-field="cant_ingresos">{{ report.cant_ingresos|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="cant_cuentas">{{ report.cant_cuentas|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="cant_bancos">B{{ report.cant_bancos|floatformat:"0"|intcomma|default:"0" }} C{{ report.cant_cuentas|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="cant_bienes">{{ report.cant_bienes|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td data-field="cant_inversiones">{{ report.cant_inversiones|floatformat:"0"|intcomma|default:"0" }}</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="12" class="text-center py-4">
+                                    No hay reportes financieros disponibles
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Transacciones de Tarjeta de Credito</h5>
+            </div>
+            <div class="card-body">
+                {% if credit_card_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Categoria</th>
+                                    <th>Subcategoria</th>
+                                    <th>Tipo de Tarjeta</th>
+                                    <th>Dia</th>
+                                    <th>Valor COP</th>
+                                    <th>Descripcion</th>
+                                    <th>Zona</th>
+                                    <th>No. Autorizacion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in credit_card_transactions %}
+                                <tr>
+                                    <td>{{ transaction.fecha_transaccion|date:"d/m/Y" }}</td>
+                                    <td>{{ transaction.categoria }}</td>
+                                    <td>{{ transaction.subcategoria }}</td>
+                                    <td>{{ transaction.tipo_tarjeta }}</td>
+                                    <td>{{ transaction.dia }}</td>
+                                    <td>{{ transaction.valor_cop }}</td>
+                                    <td>{{ transaction.descripcion }}</td>
+                                    <td>{{ transaction.zona }}</td>
+                                    <td>{{ transaction.numero_autorizacion }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No hay transacciones de tarjeta de crédito disponibles para esta persona.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const conflictSelect = document.getElementById('conflict-select');
+        const conflictTables = document.querySelectorAll('.conflict-table');
+
+        if (conflictSelect) {
+            conflictSelect.addEventListener('change', function() {
+                const selectedIndex = this.value;
+                conflictTables.forEach((table, index) => {
+                    if (index == selectedIndex) {
+                        table.style.display = 'block';
+                    } else {
+                        table.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}
