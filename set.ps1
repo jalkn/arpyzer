@@ -153,7 +153,7 @@ class PersonAdmin(admin.ModelAdmin):
     list_editable = ('revisar',)
 
     # Custom fields to show in detail view
-    readonly_fields = ('cedula_with_actions')
+    readonly_fields = ('cedula_with_actions',)  # Added trailing comma to make it a proper tuple
 
     fieldsets = (
         (None, {
