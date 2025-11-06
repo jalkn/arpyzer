@@ -1,6 +1,6 @@
-# arpApp
+# arpa
 
-Es una App para Automizar Procesos de Excel
+App para Automizar Procesos de Excel
 
 # Link
 
@@ -21,23 +21,46 @@ Este proyecto analiza las necesidades de una auditoría y explora las posibilida
 ## Enfoque Metodológico
 
 Este RPA utiliza un enfoque basado en datos, para automatizar las tareas de auditoría. El proceso automatizado incluye los siguientes pasos:
+# arpa
 
-1. Extraer datos relevantes.
-2. Analizar los datos.
-3. Filtrar resultados.
+App to Automate Excel Processes
 
-# Beneficios
+# Link
 
-Los beneficios clave de utilizar este RPA son:
+https://jalkn.github.io/arpyzer/
 
-* **Mayor eficiencia:** Reduce significativamente el tiempo requerido para realizar auditorías.
-* **Mayor precisión:** Elimina los errores humanos y proporciona resultados consistentes.
-* **Reducción de costos:** Libera a los auditores para que se centren en tareas de mayor valor.
-* **Mayor cobertura:** Permite auditar un mayor número de páginas y elementos web.
-* **Informes automatizados:** Genera informes detallados y fáciles de interpretar.
-* **Escalabilidad:** Se puede adaptar fácilmente para auditar diferentes tipos de sitios web.
+## Introduction and Context
 
-## Estructura de archivos
+Auditing is a crucial process to ensure proper handling of a company's resources. Traditionally, audits involve repetitive manual tasks that consume a lot of time and resources. This RPA (Robotic Process Automation) project aims to automate those tasks, optimizing the audit process and freeing auditors to focus on higher‑value analysis. This RPA focuses on analyzing Excel files and was developed to help identify fraud or irregularities in resource management.
+
+## Theoretical and Empirical Review
+
+Robotic Process Automation (RPA) is transforming how organizations perform routine operations. Recent studies show RPA can increase efficiency and reduce errors in repetitive work. In auditing, RPA allows automation of tasks such as analyzing Excel data, performing calculations, extracting and transforming information. This automation is implemented in Python using the Pandas library to extract, transform and load data, and to present results for auditors to review within the app.
+
+## Analysis and Exploration
+
+This project analyzes auditing needs and explores automation opportunities. The key automation areas identified are: extract, transform, and load. A comparative analysis between manual and automated methods was carried out to estimate improvements in time, accuracy and cost. Automation significantly reduces audit time and minimizes human errors.
+
+## Methodological Approach
+
+This RPA uses a data‑driven approach to automate auditing tasks. The automated process includes the following steps:
+
+1. Extract relevant data.
+2. Analyze the data.
+3. Filter results.
+
+# Benefits
+
+Key benefits of using this RPA include:
+
+* Greater efficiency — significantly reduces the time required to perform audits.
+* Greater accuracy — eliminates many human errors and provides consistent results.
+* Cost reduction — frees auditors to focus on higher‑value tasks.
+* Increased coverage — enables auditing a larger number of pages and elements.
+* Automated reporting — generates detailed, easy‑to‑interpret reports.
+* Scalability — can be adapted to audit different types of systems and files.
+
+## File structure
 ```
 arpa/
 ├── src/
@@ -73,7 +96,7 @@ arpa/
 └── app.py
 ```
 
-## Capturas de Pantalla
+## Screenshots
 
 <table>
   <tr>
@@ -82,11 +105,11 @@ arpa/
     <td><img src="./static/screenshots/recover.png" alt="recover" width="200px"></td>
     <td><img src="./static/screenshots/dashboard.png" alt="dashboard" width="200px"></td>
     <td><img src="./static/screenshots/chat.png" alt="chat" width="200px"></td>
-    <td><img src="./static/screenshots/analisis.png" alt="analisis" width="200px"></td>
+    <td><img src="./static/screenshots/analisis.png" alt="analysis" width="200px"></td>
   </tr>
 </table>
 
-## Referencias 
+## References
 
 https://www.w3schools.com
 
@@ -102,176 +125,174 @@ https://www.w3schools.com
 * Pandas Tutorial
 * Matplotlib Tutorial
 * Numpy Tutorial
-* Git tutorial
+* Git Tutorial
 * Data Science Tutorial
 * Machine Learning
 * Groq AI Agent
 * Gemini AI Agent
 * Claude AI Agent
 
-## Instalación
+## Installation
 
-1. Clona el repositorio:
+1. Clone the repository:
 
 ```bash
 git clone https://github.com/jalknToth/arpyzer.git
 ```
 
-2. Crear un entorno virtual
+2. Create a virtual environment:
 ```bash
 python -m venv venv
 ```
 
-3. Activar el entorno virtual
+3. Activate the virtual environment:
 ```bash
-python source venv/bin/activate
+source venv/bin/activate
 ```
 
-4. Instala las dependencias:
+4. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Ejecución
+## Run
 
-1. Inicia la aplicación:
+1. Start the application:
 
 ```bash
 python app.py
 ```
 
-2. Abre tu navegador web y visita `http://127.0.0.1:8080/`
+2. Open your web browser and visit `http://127.0.0.1:8080/`
 
-## Contribuciones
+## Contributions
 
-Las contribuciones son bienvenidas. Por favor, abre un *issue* o envía un *pull request*.
+Contributions are welcome. Please open an issue or submit a pull request.
 
+# Business Plan: Customized RPA Services for Excel Analysis
 
-# Plan de Negocios: Servicios Personalizados de RPA para Análisis de Excel
+## 1. Environmental Analysis
 
-## 1. Análisis del Entorno
+### PESTEL Analysis
+- Political: Data protection regulations
+- Economic: Growing digitalization of businesses
+- Social: Demand for efficiency and automation
+- Technological: Accelerated digital transformation
+- Environmental: Reduced paper consumption
+- Legal: Data protection and IT security regulations
 
-### Análisis PESTEL
-- **Político**: Regulaciones de protección de datos
-- **Económico**: Creciente digitalización empresarial
-- **Social**: Demanda de eficiencia y automatización
-- **Tecnológico**: Transformación digital acelerada
-- **Ecológico**: Reducción de consumo de papel
-- **Legal**: Normativas de protección de datos y seguridad informática
+### Competitor Analysis
+- Direct competitors: Technology consulting services
+- Indirect competitors: Generic RPA solutions
+- Competitive advantage: Customization and direct support
 
-### Análisis de Competencia
-- Competidores directos: Servicios de consultoría tecnológica
-- Competidores indirectos: Soluciones RPA genéricas
-- Ventaja diferencial: Personalización y soporte directo
+## 2. Marketing Strategies
 
-## 2. Estrategias de Mercadeo
+### Product
+- Customized RPA services for Excel analysis
+  - Automation of specific processes
+  - Personalized technical support
+  - Adaptation to the client's unique workflows
 
-### Producto
-- Servicios de RPA personalizado para análisis de Excel
-- Características:
-  - Automatización de procesos específicos
-  - Soporte técnico personalizado
-  - Adaptación a flujos de trabajo únicos del cliente
+### Pricing
+- Pricing model:
+  - Base fee per project
+  - Custom package options
+  - Hourly consulting rates
 
-### Precio
-- Modelo de pricing:
-  - Tarifa base por proyecto
-  - Opciones de paquetes personalizados
-  - Tarifas por hora de consultoría
+### Promotion
+- Digital marketing
+- Networking in developer communities
+- Presentations at entrepreneurship events
+- Technical content marketing
+- Customer testimonials
 
-### Promoción
-- Marketing digital
-- Networking en comunidades de desarrollo
-- Presentaciones en eventos de emprendimiento
-- Marketing de contenidos técnicos
-- Testimonios de clientes
+### Distribution
+- Distribution channels:
+  - Web platform
+  - Professional networks (LinkedIn)
+  - Referrals
+  - Tech events
 
-### Plaza
-- Canales de distribución:
-  - Plataforma web
-  - Redes profesionales (LinkedIn)
-  - Referidos
-  - Eventos de tecnología
+## 3. Sales Forecast
 
-## 3. Proyección de Ventas
+### Management Indicators
+- Number of completed projects
+- Customer satisfaction
+- Delivery time
+- Profit margin
+- Customer retention rate
 
-### Indicadores de Gestión
-- Número de proyectos completados
-- Satisfacción del cliente
-- Tiempo de entrega
-- Margen de utilidad
-- Tasa de retención de clientes
+### Financial Projection (Estimate)
+- Year 1: 3–5 projects per month
+- Year 2: 8–12 projects per month
+- Year 3: 15–20 projects per month
 
-### Proyección Financiera (Estimado)
-- Año 1: 3-5 proyectos mensuales
-- Año 2: 8-12 proyectos mensuales
-- Año 3: 15-20 proyectos mensuales
+## 4. Legal Requirements and Brand Manifesto
 
-## 4. Requisitos Legales y Manifiesto de Marca
+### Legal Requirements
+- Company registration
+- Tax filings
+- Service contracts
+- Data protection policies
+- Intellectual property registration
 
-### Requisitos Legales
-- Registro de empresa
-- Declaraciones fiscales
-- Contratos de servicios
-- Políticas de protección de datos
-- Registro de propiedad intelectual
+### Brand Manifesto
+- Mission: Simplify business processes through customized RPA
+- Values:
+  - Innovation
+  - Transparency
+  - Commitment to the client
+  - Continuous improvement
 
-### Manifiesto de Marca
-- Misión: Simplificar procesos empresariales mediante RPA personalizado
-- Valores:
-  - Innovación
-  - Transparencia
-  - Compromiso con el cliente
-  - Mejora continua
+## 5. CANVAS Model
 
-## 5. Modelo CANVAS
+### Customer Segments
+- Small and medium-sized businesses
+- Administrative departments
+- Data analysts
 
-### Segmentos de Cliente
-- Pequeñas y medianas empresas
-- Departamentos administrativos
-- Analistas de datos
+### Value Proposition
+- Customized RPA
+- Error reduction
+- Time savings
+- Dedicated technical support
 
-### Propuesta de Valor
-- RPA personalizado
-- Reducción de errores
-- Ahorro de tiempo
-- Soporte técnico dedicado
+### Channels
+- Website
+- Professional social networks
+- Events
+- Referrals
 
-### Canales
-- Sitio web
-- Redes sociales profesionales
-- Eventos de tecnología
-- Referidos
+### Customer Relationships
+- Personalized consulting
+- Ongoing technical support
+- Post-project follow-up
 
-### Relación con Clientes
-- Consultoría personalizada
-- Soporte técnico continuo
-- Seguimiento post-proyecto
+### Revenue Streams
+- RPA projects
+- Hourly consulting
+- Maintenance packages
 
-### Fuentes de Ingresos
-- Proyectos de RPA
-- Consultoría por horas
-- Paquetes de mantenimiento
+### Key Resources
+- Technical knowledge
+- Development tools
+- Network of contacts
+- Technological equipment
 
-### Recursos Clave
-- Conocimiento técnico
-- Herramientas de desarrollo
-- Red de contactos
-- Equipamiento tecnológico
+### Key Activities
+- RPA development
+- Consulting
+- Implementation
+- Support
 
-### Actividades Clave
-- Desarrollo de RPA
-- Consultoría
-- Implementación
-- Soporte técnico
+### Key Partners
+- Technology providers
+- Developer communities
+- Educational institutions
 
-### Socios Clave
-- Proveedores de tecnología
-- Comunidades de desarrollo
-- Instituciones educativas
-
-### Estructura de Costos
-- Desarrollo de software
+### Cost Structure
+- Software development
 - Marketing
-- Infraestructura tecnológica
-- Capacitación
+- IT infrastructure
+- Training
