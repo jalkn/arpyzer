@@ -1,4 +1,4 @@
-Corregir la carga de Clara
+Corregir la carga
 filtrar por columna
 Visulizacion de Tarjetas por Categoria por Ano
 Visualizacion Area por Ano
