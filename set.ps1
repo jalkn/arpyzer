@@ -3015,7 +3015,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </div>
                         {% else %}
                         <div class="alert alert-info">
-                            Por favor accede con tu clave para ver esta pagina.
+                            Por favor accede con tu clave para ver esta página.
                         </div>
                         {% endif %}
                     {% endif %}
@@ -3415,7 +3415,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
             </div>
             <div class="col-md-2">
                 <select name="area" class="form-select">
-                    <option value="">Area</option>
+                    <option value="">Área</option>
                     {% for area in areas %}
                         <option value="{{ area }}" {% if request.GET.area == area %}selected{% endif %}>{{ area }}</option>
                     {% endfor %}
@@ -3423,7 +3423,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
             </div>
             <div class="col-md-2">
                 <select name="compania" class="form-select">
-                    <option value="">Compania</option>
+                    <option value="">Compañía</option>
                     {% for compania in companias %}
                         <option value="{{ compania }}" {% if request.GET.compania == compania %}selected{% endif %}>{{ compania }}</option>
                     {% endfor %}
@@ -3450,7 +3450,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </th>
                         <th class="py-3">
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=cedula&sort_direction={% if current_order == 'cedula' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" class="text-decoration-none text-dark">
-                                Cedula
+                                Cédula
                             </a>
                         </th>
                         <th class="py-3">
@@ -3465,7 +3465,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </th>
                         <th class="py-3">
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=area&sort_direction={% if current_order == 'area' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" class="text-decoration-none text-dark">
-                                Area
+                                Área
                             </a>
                         </th>
                         <th class="py-3">
@@ -3475,7 +3475,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </th>
                         <th class="py-3">
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=compania&sort_direction={% if current_order == 'compania' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" class="text-decoration-none text-dark">
-                                Compania
+                                Compañía
                             </a>
                         </th>
                         <th class="py-3">
@@ -3647,7 +3647,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
             
             <div class="col-md-2">
                 <select class="form-select form-select-lg" name="categoria" id="category-filter-select">
-                    <option value="">Categoria</option>
+                    <option value="">Categoría</option>
                     {% for cat in categorias %}
                         <option value="{{ cat }}" {% if request.GET.categoria == cat %}selected{% endif %}>{{ cat }}</option>
                     {% endfor %}
@@ -3715,12 +3715,12 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=person__compania&sort_direction={% if current_order == 'person__compania' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Compania
+                                Compañía
                             </a>
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=person__area&sort_direction={% if current_order == 'person__area' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Area
+                                Área
                             </a>
                         </th>
                         <th>
@@ -3730,7 +3730,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=numero_tarjeta&sort_direction={% if current_order == 'numero_tarjeta' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Numero de Tarjeta
+                                Número de Tarjeta
                             </a>
                         </th>
                         <th>
@@ -3755,32 +3755,32 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=numero_autorizacion&sort_direction={% if current_order == 'numero_autorizacion' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Numero de Autorizacion
+                                Numero de Autorización
                             </a>
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=fecha_transaccion&sort_direction={% if current_order == 'fecha_transaccion' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Fecha de Transaccion
+                                Fecha de Transacción
                             </a>
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=dia&sort_direction={% if current_order == 'dia' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Dia
+                                Día
                             </a>
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=descripcion&sort_direction={% if current_order == 'descripcion' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Descripcion
+                                Descripción
                             </a>
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=categoria&sort_direction={% if current_order == 'categoria' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Categoria
+                                Categoría
                             </a>
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=subcategoria&sort_direction={% if current_order == 'subcategoria' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
-                                Subcategoria
+                                Subcategoría
                             </a>
                         </th>
                         <th id="zona-header">
@@ -4187,14 +4187,14 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
-                                    <th>Categoria</th>
-                                    <th>Subcategoria</th>
+                                    <th>Categoría</th>
+                                    <th>Subcategoría</th>
                                     <th>Tipo de Tarjeta</th>
-                                    <th>Dia</th>
+                                    <th>Día</th>
                                     <th>Valor COP</th>
-                                    <th>Descripcion</th>
+                                    <th>Descripción</th>
                                     <th>Zona</th>
-                                    <th>No. Autorizacion</th>
+                                    <th>No. Autorización</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -4274,7 +4274,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                 <input type="text" 
                        name="q" 
                        class="form-control form-control-lg" 
-                       placeholder="Buscar persona o cedula" 
+                       placeholder="Buscar persona o cédula" 
                        value="{{ request.GET.q }}">
             </div>
             
@@ -4299,7 +4299,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </th>
                         <th>
                             <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=cedula&sort_direction={% if current_order == 'cedula' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" class="link-dark text-decoration-none">
-                                Cedula
+                                Cédula
                             </a>
                         </th>
                         <th>
