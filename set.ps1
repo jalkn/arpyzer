@@ -2043,17 +2043,12 @@ import re
 import datetime
 import locale
 from PyPDF2.errors import PdfReadError
+# Importación necesaria para la normalización de texto
+import unicodedata 
 
 def extract_and_parse_data(pdf_path):
     """
     Extracts and parses transaction data from a PDF file, grouped by card.
-
-    Args:
-        pdf_path (str): The file path to the PDF.
-
-    Returns:
-        list: A list of lists, where each inner list is a row of parsed data
-              with card details included.
     """
     parsed_rows = []
 
@@ -2062,7 +2057,6 @@ def extract_and_parse_data(pdf_path):
         try:
             locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
         except locale.Error:
-            print("Warning: Spanish locale not found. Falling back to default.")
             try:
                 locale.setlocale(locale.LC_TIME, 'es_ES')
             except locale.Error:
@@ -2086,7 +2080,6 @@ def extract_and_parse_data(pdf_path):
                     re.IGNORECASE | re.DOTALL
                 )
 
-                # Find all card blocks in the text of the current page
                 card_blocks = card_block_pattern.findall(full_text)
 
                 for block_text in card_blocks:
@@ -2101,18 +2094,19 @@ def extract_and_parse_data(pdf_path):
                         
                         # Regex to capture transaction line with both primary and secondary values
                         transaction_line_pattern = re.compile(
-                            r'(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2})\s+'
-                            r'(.*?)\s+'
-                            r'(\d{6})\s*'
-                            r'(\$?[\d\.,]+)\s*(?:([\d\.,]+)?\s*(\bUSD\b|\bEUR\b|\bPEN\b)?)?',
+                            r'(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2})\s+' # 1: Date
+                            r'(.*?)\s+'                                                              # 2: Description
+                            r'(\d{6})\s*'                                                            # 3: Auth Num (6 digits)
+                            r'(\$?\s*[\d\.,]+)\s*'                                                   # 4: Value A (COP Value - Primary)
+                            r'(\$?\s*[\d\.,]+)?\s*'                                                  # 5: Value B (Secondary value, either COP or Foreign)
+                            r'(\bUSD\b|\bEUR\b|\bPEN\b)?',                                            # 6: Currency (optional)
                             re.IGNORECASE | re.MULTILINE
                         )
                         
-                        # Find all transactions within this specific card block
                         transactions = transaction_line_pattern.findall(block_text)
                         
                         if not transactions:
-                            print(f"No transactions found for {cardholder_name} ({card_number}) on page {page_number}.")
+                            pass 
                         
                         for transaction in transactions:
                             date = transaction[0].strip()
@@ -2125,7 +2119,9 @@ def extract_and_parse_data(pdf_path):
 
                             valor_cop = primary_value
 
-                            if secondary_value:
+                            if secondary_value and not moneda:
+                                valor_original = secondary_value
+                            elif secondary_value and moneda:
                                 valor_original = secondary_value
                             else:
                                 valor_original = primary_value
@@ -2141,19 +2137,9 @@ def extract_and_parse_data(pdf_path):
                             formatted_card_type = f"Clara {card_type}"
 
                             parsed_rows.append([
-                                date,
-                                day_of_week,
-                                year,
-                                description,
-                                auth_num,
-                                valor_original,
-                                moneda,
-                                valor_cop,
-                                formatted_card_type,
-                                card_number,
-                                cardholder_name,
-                                pdf_path,
-                                page_number
+                                date, day_of_week, year, description, auth_num, valor_original,
+                                moneda, valor_cop, formatted_card_type, card_number,
+                                cardholder_name, pdf_path, page_number
                             ])
     except FileNotFoundError:
         print(f"Error: The file '{pdf_path}' was not found.")
@@ -2187,22 +2173,39 @@ def save_data_to_excel(df, output_excel_path):
 
 def read_personas_excel(excel_path):
     """
-    Reads the Personas.xlsx file into a DataFrame.
+    Reads the PersonasTC.xlsx file into a DataFrame.
     """
     try:
         personas_df = pd.read_excel(excel_path)
         return personas_df
     except FileNotFoundError:
-        print(f"Error: The file '{excel_path}' was not found.")
+        print(f"Error: The file '{excel_path}' was not found. Check your working directory.")
         return pd.DataFrame()
     except Exception as e:
         print(f"An unexpected error occurred while reading '{excel_path}': {e}")
         return pd.DataFrame()
 
+# --- FUNCIÓN DE LIMPIEZA MEJORADA ---
+def clean_name(name):
+    if pd.isna(name):
+        return name
+    name = str(name)
+    # 1. Normalizar a NFD (Forma de Descomposición Canónica) y codificar a ASCII,
+    #    ignorando los caracteres que no se puedan mapear (elimina tildes y eñes).
+    name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('utf-8')
+    # 2. Convertir a mayúsculas
+    name = name.upper()
+    # 3. Eliminar todos los caracteres que NO sean letras o espacios
+    name = re.sub(r'[^A-Z\s]', '', name)
+    # 4. Eliminar espacios múltiples y trim
+    name = re.sub(r'\s+', ' ', name).strip()
+    return name
+
+
 if __name__ == "__main__":
     pdf_file_name = "clara.pdf"
     excel_file_name = "Clara.xlsx"
-    personas_file_name = "Personas.xlsx"
+    personas_file_name = "PersonasTC.xlsx"
     
     column_headers = ["Fecha Transacción", "Día", "Año", "Descripción", "Número de Autorización", "Valor Original", "Moneda", "Valor COP", "Tipo de Tarjeta", "Número de Tarjeta", "Tarjetahabiente", "Archivo", "Página"]
 
@@ -2214,17 +2217,41 @@ if __name__ == "__main__":
         df_personas = read_personas_excel(personas_file_name)
 
         if not df_personas.empty:
-            final_df = pd.merge(df_clara, df_personas[['NOMBRE COMPLETO', 'Cedula', 'Compania', 'CARGO', 'AREA']], 
-                                how='left', left_on='Tarjetahabiente', right_on='NOMBRE COMPLETO')
             
-            final_df.drop('NOMBRE COMPLETO', axis=1, inplace=True)
+            # 1. Aplicar la limpieza agresiva a ambas columnas clave
+            df_clara['Tarjetahabiente_MergeKey'] = df_clara['Tarjetahabiente'].apply(clean_name)
+            
+            # Asegurarse de que la columna de nombres exista en el Excel
+            if 'NOMBRE COMPLETO' in df_personas.columns:
+                 df_personas['NOMBRE COMPLETO_MergeKey'] = df_personas['NOMBRE COMPLETO'].apply(clean_name)
+            else:
+                 print("\nError: Columna 'NOMBRE COMPLETO' no encontrada en PersonasTC.xlsx. No se puede continuar con la fusión.")
+                 save_data_to_excel(df_clara, excel_file_name)
+                 exit()
 
-            save_data_to_excel(final_df, excel_file_name)
+            try:
+                # 2. Fusión usando las nuevas claves limpias y usando las columnas correctas en minúsculas
+                final_df = pd.merge(df_clara, 
+                                    df_personas[['NOMBRE COMPLETO', 'cedula', 'compania', 'cargo', 'area', 'NOMBRE COMPLETO_MergeKey']], 
+                                    how='left', 
+                                    left_on='Tarjetahabiente_MergeKey', 
+                                    right_on='NOMBRE COMPLETO_MergeKey')
+                
+                # 3. Eliminar las columnas clave temporales
+                final_df.drop(['Tarjetahabiente_MergeKey', 'NOMBRE COMPLETO_MergeKey', 'NOMBRE COMPLETO'], axis=1, inplace=True)
+                
+                save_data_to_excel(final_df, excel_file_name)
+                
+            except KeyError as e:
+                print(f"\n--- ERROR EN NOMBRE DE COLUMNA ---\nError durante la fusión: Una o más columnas que intentó seleccionar de 'PersonasTC.xlsx' no se encontraron en el archivo: {e}")
+                print("Verifique la ortografía y el uso de minúsculas/mayúsculas de las columnas: 'cedula', 'compania', 'cargo', 'area'.")
+                print("Guardando solo los datos de transacción extraídos en 'Clara.xlsx'.")
+                save_data_to_excel(df_clara, excel_file_name)
         else:
-            print("Could not read 'Personas.xlsx'. Saving only PDF data.")
+            print("Guardando solo los datos de transacción extraídos en 'Clara.xlsx' (Falta o no se pudo leer 'PersonasTC.xlsx').")
             save_data_to_excel(df_clara, excel_file_name)
     else:
-        print("No transaction data was found in the PDF. Please check the file and the data format.")
+        print("No se encontraron datos de transacciones en el PDF. Por favor, verifique el archivo y el formato de datos.")
 "@
 
 # Update project urls.py with proper admin configuration
