@@ -1,47 +1,38 @@
-function arpa {
-    param (
-        [string]$ExcelFilePath = $null
-    )
+#!/bin/bash
 
-    $YELLOW = [ConsoleColor]::Yellow
-    
-    $GREEN = [ConsoleColor]::Green
+set -e
 
-    Write-Host "🚀 Creating ARPA" -ForegroundColor $YELLOW
+YELLOW='\033[1;33m'
+GREEN='\033[1;32m'
+NC='\033[0m' # No Color
 
-    # Create python3 virtual environment
-    python3 -m venv .venv
-    .\.venv\scripts\activate
+echo -e "${YELLOW}🚀 Creating ARPA${NC}"
 
-    # Install required python3 packages
-    python3 -m pip install --upgrade pip
-    python3 -m pip install pyinstaller django whitenoise django-bootstrap-v5 xlsxwriter openpyxl pandas xlrd>=2.0.1 pdfplumber PyMuPDF msoffcrypto-tool fuzzywuzzy python-Levenshtein psycopg2-binary
-    python3 -m pip install pyinstaller django whitenoise django-bootstrap-v5 xlsxwriter openpyxl pandas xlrd>=2.0.1 pdfplumber PyMuPDF msoffcrypto-tool fuzzywuzzy python-Levenshtein
+# Create python3 virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
-    # Create Django project
-    django-admin startproject arpa
-    cd arpa
+# Install required python3 packages
+pip install --upgrade pip
+pip install pyinstaller django whitenoise django-bootstrap-v5 xlsxwriter openpyxl pandas xlrd>=2.0.1 pdfplumber PyMuPDF msoffcrypto-tool fuzzywuzzy python-Levenshtein psycopg2-binary gunicorn
 
-    # Create core app
-    python3 manage.py startapp core
+# Create Django project
+django-admin startproject arpa
+cd arpa
 
-    # Create templates directory structure
-    $directories = @(
-        "core/src",
-        "core/static",
-        "core/static/css",
-        "core/static/js",
-        "core/templates",
-        "core/templatetags",
-        "core/templates/admin",
-        "core/templates/registration"
-    )
-    foreach ($dir in $directories) {
-        New-Item -Path $dir -ItemType Directory -Force
-    }
+# Create core app
+python3 manage.py startapp core
 
-# Create runserver.py with basic Django setup
-Set-Content -Path "runserver.py" -Value @" 
+# Create templates directory structure
+mkdir -p core/src
+mkdir -p core/static/css
+mkdir -p core/static/js
+mkdir -p core/templates/admin
+mkdir -p core/templates/registration
+mkdir -p core/templatetags
+
+# Create runserver.py
+cat <<'EOF' > runserver.py
 import os
 import sys
 import webbrowser
@@ -56,7 +47,7 @@ def main():
 
     # Check if we are running in the packaged executable
     if getattr(sys, 'frozen', False):
-        print(f"Starting Django server at {{server_address}}...")
+        print(f"Starting Django server at {server_address}...")
 
         # Automatically open the browser
         import threading
@@ -68,7 +59,7 @@ def main():
         threading.Thread(target=open_browser).start()
 
         # Run the Django server command, disabling the reloader
-        execute_from_command_line(['manage.py', 'runserver', f'127.0.0.1:{{port}}', '--noreload'])
+        execute_from_command_line(['manage.py', 'runserver', f'127.0.0.1:{port}', '--noreload'])
 
     else:
         # Standard development run
@@ -77,10 +68,10 @@ def main():
 
 if __name__ == '__main__':
     main()
-"@
+EOF
 
-# Create models.py with cedula as primary key
-Set-Content -Path "core/models.py" -Value @" 
+# Create models.py
+cat <<'EOF' > core/models.py
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -98,7 +89,8 @@ class Person(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.nombre_completo} ({self.cedula})"    
+        return f"{self.nombre_completo} ({self.cedula})"
+    
 
 class CreditCard(models.Model):
     id = models.AutoField(primary_key=True)
@@ -137,15 +129,16 @@ class CreditCard(models.Model):
         verbose_name = "Tarjeta de Crédito"
         verbose_name_plural = "Tarjetas de Crédito"
         unique_together = ('person', 'fecha_transaccion', 'numero_autorizacion', 'valor_original')
-"@
+EOF
 
-# Create admin.py with enhanced configuration
-Set-Content -Path "core/admin.py" -Value @" 
+# Create admin.py
+cat <<'EOF' > core/admin.py
 from django.contrib import admin
 from django import forms
 from django.utils.html import format_html
 from django.urls import reverse
 from core.models import Person, CreditCard 
+
 
 @admin.register(Person)
 class PersonAdmin(admin.ModelAdmin):
@@ -162,7 +155,7 @@ class PersonAdmin(admin.ModelAdmin):
             'fields': ('cedula_with_actions', 'nombre_completo', 'correo', 'estado', 'compania', 'cargo', 'area', 'revisar', 'comments')
         }),
         ('Related Records', {
-            'fields': (),
+            'fields': ()
             'classes': ('collapse',)
         }),
     )
@@ -174,11 +167,11 @@ class PersonAdmin(admin.ModelAdmin):
             add_url = reverse('admin:core_person_add')
 
             return format_html(
-                '{} <div class="nowrap">'
-                '<a href="{}" class="changelink">Change</a> &nbsp;'
-                '<a href="{}" class="historylink">History</a> &nbsp;'
-                '<a href="{}" class="addlink">Add another</a>'
-                '</div>',
+                '{} <div class="nowrap">
+                <a href="{}" class="changelink">Change</a> &nbsp;
+                <a href="{}" class="historylink">History</a> &nbsp;
+                <a href="{}" class="addlink">Add another</a>
+                </div>',
                 obj.cedula,
                 change_url,
                 history_url,
@@ -213,7 +206,7 @@ class CreditCardAdmin(admin.ModelAdmin):
         'zona', 'person__compania', 'person__cargo', 'fecha_transaccion'
     )
     
-    # ... (El resto del código de la clase CreditCardAdmin, incluyendo person_link y raw_id_fields, es correcto)
+    # ... (El resto del código de la clase CreditCardAdmin, incluyendo person_link y raw_id_fields, es correcto)    
     
     def person_link(self, obj):
         link = reverse("admin:core_person_change", args=[obj.person.cedula])
@@ -223,10 +216,10 @@ class CreditCardAdmin(admin.ModelAdmin):
     person_link.admin_order_field = 'person__nombre_completo'
 
     raw_id_fields = ('person',)
-"@
+EOF
 
-# Create urls.py for core app
-Set-Content -Path "core/urls.py" -Value @"
+# Create core/urls.py
+cat <<'EOF' > core/urls.py
 from django.contrib.auth import views as auth_views
 from django.urls import path
 from . import views
@@ -235,20 +228,22 @@ from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.contrib.auth import views as auth_views
-from .views import (main, register_superuser, ImportView, person_list,
-                   import_persons,
-                   person_details, 
-                   export_persons_excel, alerts_list, save_comment, delete_comment, import_tcs, import_categorias,
-                   tcs_list, import_personas_tc, export_credit_card_excel) 
+from .views import (
+    main, register_superuser, ImportView, person_list,
+    import_persons,
+    person_details, 
+    export_persons_excel, alerts_list, save_comment, delete_comment, import_tcs, import_categorias,
+    tcs_list, import_personas_tc, export_credit_card_excel
+) 
 
 def register_superuser(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
-        password1 = request.POST.get('password1')
+        password_confirmation = request.POST.get('password_confirmation')
         password2 = request.POST.get('password2')
 
-        if password1 != password2:
+        if password_confirmation != password2:
             messages.error(request, "Passwords don't match")
             return redirect('register')
 
@@ -261,7 +256,7 @@ def register_superuser(request):
             user = User.objects.create_superuser(
                 username=username,
                 email=email,
-                password=password1
+                password=password_confirmation
             )
             messages.success(request, f"Superuser {username} created successfully!")
             return redirect('login')
@@ -292,10 +287,10 @@ urlpatterns = [
     path('tcs/export/excel/', export_credit_card_excel, name='export_credit_card_excel'),
     
 ]
-"@
+EOF
 
-# Update core/views.py with financial import
-Set-Content -Path "core/views.py" -Value @"
+# Create core/views.py
+cat <<'EOF' > core/views.py
 import pandas as pd
 from datetime import datetime
 import os
@@ -319,6 +314,7 @@ from django.shortcuts import get_object_or_404, redirect
 from . import tcs 
 import openpyxl
 from openpyxl.utils.dataframe import dataframe_to_rows 
+
 
 @login_required
 @require_POST
@@ -365,10 +361,10 @@ def register_superuser(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
-        password1 = request.POST.get('password1')
+        password_confirmation = request.POST.get('password_confirmation')
         password2 = request.POST.get('password2')
 
-        if password1 != password2:
+        if password_confirmation != password2:
             messages.error(request, "Passwords don't match")
             return redirect('register')
 
@@ -381,7 +377,7 @@ def register_superuser(request):
             user = User.objects.create_superuser(
                 username=username,
                 email=email,
-                password=password1
+                password=password_confirmation
             )
             messages.success(request, f"Superuser {username} created successfully!")
             return redirect('login')
@@ -752,7 +748,7 @@ def main(request):
 
 @login_required
 def import_persons(request):
-    """View for importing persons data from Excel files"""
+    "View for importing persons data from Excel files"
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
         try:
@@ -935,7 +931,7 @@ def import_personas_tc(request):
             if 'estado' not in df.columns:
                 df['estado'] = 'Activo'
             
-            # 5. Mapeo de columnas (del Excel normalizado al campo del modelo/interno)
+            # 5. Mapeo de columnas (del Excel normalizado al campo del modelo/interno) 
             user_requested_mapping = {
                 'person id': 'id_temp',      
                 'national id': 'cedula',     
@@ -989,7 +985,7 @@ def import_personas_tc(request):
             
             # --- FIN de la nueva lógica ---
 
-            messages.success(request, f'Archivo \"{file_name}\" importado y datos de {len(df_to_save)} personas actualizados correctamente. Archivo de salida con NOMBRE COMPLETO generado.', extra_tags='import_personas_tc')
+            messages.success(request, f'Archivo "{file_name}" importado y datos de {len(df_to_save)} personas actualizados correctamente. Archivo de salida con NOMBRE COMPLETO generado.', extra_tags='import_personas_tc')
             
         except Exception as e:
             messages.error(request, f'Error al importar el archivo de personas: {e}', extra_tags='import_personas_tc')
@@ -1124,7 +1120,9 @@ def export_persons_excel(request):
     excel_file.seek(0)
 
     # Create the HTTP response
-    response = HttpResponse(excel_file.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
     response['Content-Disposition'] = f'attachment; filename="persons_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
     return response
 
@@ -1407,7 +1405,7 @@ def export_credit_card_excel(request):
         # Example server-side filtering for credit cards:
         # FIX: Changed 'comercio' to the correct field name 'descripcion' in Q filter
         queryset = queryset.filter(
-            Q(descripcion__icontains=q) | 
+            Q(descripcion__icontains=q) |
             Q(person__cedula__icontains=q) |
             Q(person__nombre_completo__icontains=q)
         )
@@ -1475,11 +1473,10 @@ def export_credit_card_excel(request):
     workbook.save(response)
     
     return response
-"@
+EOF
 
-
-# Create tcs.py
-Set-Content -Path "core/tcs.py" -Value @"
+# Create core/tcs.py
+cat <<'EOF' > core/tcs.py
 import os
 import re
 import fitz
@@ -1489,7 +1486,7 @@ from datetime import datetime
 
 # --- Configuration (can be modified by views.py) ---
 categorias_file = "" # Will be set dynamically
-cedulas_file = "" 
+cedulas_file = ""
 pdf_password = ""
 
 
@@ -1594,7 +1591,7 @@ def load_cedulas_data(base_dir):
             
             # --- START FIX: Normalizar columnas para hacer la verificación insensible a mayúsculas/minúsculas ---
             # 1. Normalizar las columnas del DataFrame cargado a minúsculas/snake_case
-            df.columns = df.columns.str.lower().str.replace(' ', '_').str.strip()
+            df.columns = df.columns.str.lower().str.replace(' ', '_')
             
             # 2. Definir los nombres de columna requeridos en formato normalizado
             required_normalized = ['nombre_completo', 'cedula', 'cargo']
@@ -1655,7 +1652,7 @@ def clean_cedula_format(value):
 
 # --- Regex for MC (from mc.py) ---
 mc_transaccion_regex = re.compile(
-    r"(\w{5,})\s+(\d{2}/\d{2}/\d{4})\s+(.*?)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+(\d+/\d+)"
+    r"(\w{5,})\s+(\d{2}/\d{2}/\d{4})\s+(.*?)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+(\d+/\d+)",
 )
 mc_nombre_regex = re.compile(r"SEÑOR \(A\):\s*(.*)")
 mc_tarjeta_regex = re.compile(r"TARJETA:\s+\*{12}(\d{4})")
@@ -1663,7 +1660,7 @@ mc_moneda_regex = re.compile(r"ESTADO DE CUENTA EN:\s+(DOLARES|PESOS)")
 
 # --- Regex for Visa (from visa.py) ---
 visa_pattern_transaccion = re.compile(
-    r"(\d{6})\s+(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,.]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,.]+)\s+([\d,.]+)\s+(\d+/\d+|0\.00)"
+    r"(\d{6})\s+(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,.]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,.]+)\s+([\d,.]+)\s+(\d+/\d+|0\.00)",
 )
 visa_pattern_tarjeta = re.compile(r"TARJETA:\s+\*{12}(\d{4})")
 
@@ -2039,229 +2036,10 @@ def run_pdf_processing(base_dir, input_folder, output_folder):
         print(df_resultado_final.head())
     else:
         print("\n⚠️ No se extrajo ningún dato de los archivos PDF (MC o VISA).")
-"@
+EOF
 
-# Create clara.py
-Set-Content -Path "core/clara.py" -Value @"
-import PyPDF2
-import pandas as pd
-import re
-import datetime
-import locale
-from PyPDF2.errors import PdfReadError
-# Importación necesaria para la normalización de texto
-import unicodedata 
-
-def extract_and_parse_data(pdf_path):
-    """
-    Extracts and parses transaction data from a PDF file, grouped by card.
-    """
-    parsed_rows = []
-
-    try:
-        # Set the locale to Spanish for date formatting
-        try:
-            locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-        except locale.Error:
-            try:
-                locale.setlocale(locale.LC_TIME, 'es_ES')
-            except locale.Error:
-                pass
-
-        with open(pdf_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-
-            for page_number, page in enumerate(reader.pages, 1):
-                full_text = page.extract_text()
-                
-                # Regex to capture the entire card block.
-                card_block_pattern = re.compile(
-                    r'(Tarjeta\s+\*\s*\d{4}.*?)(?=Tarjeta\s+\*|\Z)',
-                    re.IGNORECASE | re.DOTALL
-                )
-                
-                # Regex to extract details from the card header.
-                card_details_pattern = re.compile(
-                    r'Tarjeta\s+\*\s*(\d{4})\s+·\s+(Virtual|Física)\s+(.*?)\s+·\s+ID\s+\d{8}',
-                    re.IGNORECASE | re.DOTALL
-                )
-
-                card_blocks = card_block_pattern.findall(full_text)
-
-                for block_text in card_blocks:
-                    card_details = card_details_pattern.search(block_text)
-                    
-                    if card_details:
-                        card_number = card_details.group(1)
-                        card_type = card_details.group(2)
-                        cardholder_name = card_details.group(3).strip()
-                        
-                        print(f"--- Found Card Block for {cardholder_name} ({card_number}) ---")
-                        
-                        # Regex to capture transaction line with both primary and secondary values
-                        transaction_line_pattern = re.compile(
-                            r'(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2})\s+' # 1: Date
-                            r'(.*?)\s+'                                                              # 2: Description
-                            r'(\d{6})\s*'                                                            # 3: Auth Num (6 digits)
-                            r'(\$?\s*[\d\.,]+)\s*'                                                   # 4: Value A (COP Value - Primary)
-                            r'(\$?\s*[\d\.,]+)?\s*'                                                  # 5: Value B (Secondary value, either COP or Foreign)
-                            r'(\bUSD\b|\bEUR\b|\bPEN\b)?',                                            # 6: Currency (optional)
-                            re.IGNORECASE | re.MULTILINE
-                        )
-                        
-                        transactions = transaction_line_pattern.findall(block_text)
-                        
-                        if not transactions:
-                            pass 
-                        
-                        for transaction in transactions:
-                            date = transaction[0].strip()
-                            description = transaction[1].strip()
-                            auth_num = transaction[2].strip()
-                            
-                            primary_value = transaction[3].strip()
-                            secondary_value = transaction[4].strip()
-                            moneda = transaction[5].strip() if transaction[5] else "COP"
-
-                            valor_cop = primary_value
-
-                            if secondary_value and not moneda:
-                                valor_original = secondary_value
-                            elif secondary_value and moneda:
-                                valor_original = secondary_value
-                            else:
-                                valor_original = primary_value
-
-                            try:
-                                date_obj = datetime.datetime.strptime(date, '%d %b %y')
-                                day_of_week = date_obj.strftime('%A').title()
-                                year = date_obj.year
-                            except ValueError:
-                                day_of_week = "N/A"
-                                year = "N/A"
-                            
-                            formatted_card_type = f"Clara {card_type}"
-
-                            parsed_rows.append([
-                                date, day_of_week, year, description, auth_num, valor_original,
-                                moneda, valor_cop, formatted_card_type, card_number,
-                                cardholder_name, pdf_path, page_number
-                            ])
-    except FileNotFoundError:
-        print(f"Error: The file '{pdf_path}' was not found.")
-        return []
-    except PdfReadError as e:
-        print(f"Error: Could not read '{pdf_path}'. The file might be corrupted or encrypted.")
-        print(f"PyPDF2 error: {e}")
-        return []
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return []
-
-    if not parsed_rows:
-        print("No transaction data was found in the PDF. Please check the file and the data format.")
-    
-    return parsed_rows
-
-def save_data_to_excel(df, output_excel_path):
-    """
-    Saves a pandas DataFrame to an Excel file with all required columns.
-    """
-    if df.empty:
-        print("No data to save.")
-        return
-
-    df.to_excel(output_excel_path, index=False)
-    print(f"Successfully saved {len(df)} rows to '{output_excel_path}' under the following columns:")
-    for col in df.columns:
-        print(f" - {col}")
-    print(f"Output file: {output_excel_path}")
-
-def read_personas_excel(excel_path):
-    """
-    Reads the PersonasTC.xlsx file into a DataFrame.
-    """
-    try:
-        personas_df = pd.read_excel(excel_path)
-        return personas_df
-    except FileNotFoundError:
-        print(f"Error: The file '{excel_path}' was not found. Check your working directory.")
-        return pd.DataFrame()
-    except Exception as e:
-        print(f"An unexpected error occurred while reading '{excel_path}': {e}")
-        return pd.DataFrame()
-
-# --- FUNCIÓN DE LIMPIEZA MEJORADA ---
-def clean_name(name):
-    if pd.isna(name):
-        return name
-    name = str(name)
-    # 1. Normalizar a NFD (Forma de Descomposición Canónica) y codificar a ASCII,
-    #    ignorando los caracteres que no se puedan mapear (elimina tildes y eñes).
-    name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('utf-8')
-    # 2. Convertir a mayúsculas
-    name = name.upper()
-    # 3. Eliminar todos los caracteres que NO sean letras o espacios
-    name = re.sub(r'[^A-Z\s]', '', name)
-    # 4. Eliminar espacios múltiples y trim
-    name = re.sub(r'\s+', ' ', name).strip()
-    return name
-
-
-if __name__ == "__main__":
-    pdf_file_name = "clara.pdf"
-    excel_file_name = "Clara.xlsx"
-    personas_file_name = "PersonasTC.xlsx"
-    
-    column_headers = ["Fecha Transacción", "Día", "Año", "Descripción", "Número de Autorización", "Valor Original", "Moneda", "Valor COP", "Tipo de Tarjeta", "Número de Tarjeta", "Tarjetahabiente", "Archivo", "Página"]
-
-    extracted_data = extract_and_parse_data(pdf_file_name)
-
-    if extracted_data:
-        df_clara = pd.DataFrame(extracted_data, columns=column_headers)
-
-        df_personas = read_personas_excel(personas_file_name)
-
-        if not df_personas.empty:
-            
-            # 1. Aplicar la limpieza agresiva a ambas columnas clave
-            df_clara['Tarjetahabiente_MergeKey'] = df_clara['Tarjetahabiente'].apply(clean_name)
-            
-            # Asegurarse de que la columna de nombres exista en el Excel
-            if 'NOMBRE COMPLETO' in df_personas.columns:
-                 df_personas['NOMBRE COMPLETO_MergeKey'] = df_personas['NOMBRE COMPLETO'].apply(clean_name)
-            else:
-                 print("\nError: Columna 'NOMBRE COMPLETO' no encontrada en PersonasTC.xlsx. No se puede continuar con la fusión.")
-                 save_data_to_excel(df_clara, excel_file_name)
-                 exit()
-
-            try:
-                # 2. Fusión usando las nuevas claves limpias y usando las columnas correctas en minúsculas
-                final_df = pd.merge(df_clara, 
-                                    df_personas[['NOMBRE COMPLETO', 'cedula', 'compania', 'cargo', 'area', 'NOMBRE COMPLETO_MergeKey']], 
-                                    how='left', 
-                                    left_on='Tarjetahabiente_MergeKey', 
-                                    right_on='NOMBRE COMPLETO_MergeKey')
-                
-                # 3. Eliminar las columnas clave temporales
-                final_df.drop(['Tarjetahabiente_MergeKey', 'NOMBRE COMPLETO_MergeKey', 'NOMBRE COMPLETO'], axis=1, inplace=True)
-                
-                save_data_to_excel(final_df, excel_file_name)
-                
-            except KeyError as e:
-                print(f"\n--- ERROR EN NOMBRE DE COLUMNA ---\nError durante la fusión: Una o más columnas que intentó seleccionar de 'PersonasTC.xlsx' no se encontraron en el archivo: {e}")
-                print("Verifique la ortografía y el uso de minúsculas/mayúsculas de las columnas: 'cedula', 'compania', 'cargo', 'area'.")
-                print("Guardando solo los datos de transacción extraídos en 'Clara.xlsx'.")
-                save_data_to_excel(df_clara, excel_file_name)
-        else:
-            print("Guardando solo los datos de transacción extraídos en 'Clara.xlsx' (Falta o no se pudo leer 'PersonasTC.xlsx').")
-            save_data_to_excel(df_clara, excel_file_name)
-    else:
-        print("No se encontraron datos de transacciones en el PDF. Por favor, verifique el archivo y el formato de datos.")
-"@
-
-# Update project urls.py with proper admin configuration
-Set-Content -Path "arpa/urls.py" -Value @"
+# Create arpa/urls.py
+cat <<'EOF' > arpa/urls.py
 from django.contrib import admin
 from django.urls import include, path
 from django.contrib.auth import views as auth_views
@@ -2277,10 +2055,10 @@ urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),  
     
 ]
-"@
+EOF
 
-# Update template filters
-Set-Content -Path "core/templatetags/my_filters.py" -Value @"
+# Create core/templatetags/my_filters.py
+cat <<'EOF' > core/templatetags/my_filters.py
 from django import template
 
 register = template.Library()
@@ -2292,14 +2070,13 @@ def split_lines(value):
         # Only split if it's a string; handle None/empty string gracefully
         return value.splitlines()
     return [] # Return an empty list for non-string or None values
-"@
+EOF
 
-# Update template filters __init__.py
-Set-Content -Path "core/templatetags/__init__.py" -Value @"
-"@
+# Create core/templatetags/__init__.py
+touch core/templatetags/__init__.py
 
-#statics css style
-@" 
+# Create core/static/css/style.css
+cat <<'EOF' > core/static/css/style.css
 :root {
     --primary-color: #1a4d7d;
     --primary-hover: #153c61;
@@ -2331,7 +2108,7 @@ main {
     padding-bottom: 20px;
 }
 
-/* Navbar */
+/*Navbar */
 .logoIN {
     width: 30px;
     height: 30px;
@@ -2520,9 +2297,10 @@ main {
 footer {
     border-top: 1px solid var(--border-color);
 }
-"@ | Out-File -FilePath "core/static/css/style.css" -Encoding utf8
+EOF
 
-@"
+# Create core/static/css/loading.css
+cat <<'EOF' > core/static/css/loading.css
 .loading-overlay {
     position: fixed;
     top: 0;
@@ -2554,9 +2332,10 @@ footer {
 .btn .spinner-border {
     margin-right: 8px;
 }
-"@ | Out-File -FilePath "core/static/css/loading.css" -Encoding utf8
+EOF
 
-@"
+# Create core/static/css/freeze.css
+cat <<'EOF' > core/static/css/freeze.css
 /* Table container styles */
 .table-container {
     position: relative;
@@ -2654,44 +2433,10 @@ footer {
 .freeze-column-btn.active {
     opacity: 1; /* More visible when hovered or active */
 }
-"@ | Out-File -FilePath "core/static/css/freeze.css" -Encoding utf8
+EOF
 
-@"
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    z-index: 9999;
-    display: none;
-    justify-content: center;
-    align-items: center;
-}
-
-.loading-content {
-    background-color: white;
-    padding: 30px;
-    border-radius: 8px;
-    text-align: center;
-    max-width: 500px;
-    width: 90%;
-}
-
-.progress {
-    height: 20px;
-    margin: 20px 0;
-}
-
-/* Spinner styles for submit buttons */
-.btn .spinner-border {
-    margin-right: 8px;
-}
-"@ | Out-File -FilePath "core/static/css/loading.css" -Encoding utf8
-
-# Create loading.js
-@"
+# Create core/static/js/loading.js
+cat <<'EOF' > core/static/js/loading.js
 document.addEventListener('DOMContentLoaded', function() {
     // Get all forms that should show loading
     const forms = document.querySelectorAll('form');
@@ -2716,9 +2461,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
-"@ | Out-File -FilePath "core/static/js/loading.js" -Encoding utf8
+EOF
 
-$jsContent = @"
+# Create core/static/js/freeze_columns.js
+cat <<'EOF' > core/static/js/freeze_columns.js
 document.addEventListener('DOMContentLoaded', function() {
     const table = document.querySelector('.table');
     if (!table) return;
@@ -2738,14 +2484,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let currentLeft = 0;
         frozenColumns.forEach(colIndex => {
-            const cellsInColumn = table.querySelectorAll(``td:nth-child(`$`{colIndex + 1}), th:nth-child(`$`{colIndex + 1})``);
+            const cellsInColumn = table.querySelectorAll(`td:nth-child(${colIndex + 1}), th:nth-child(${colIndex + 1})`);
             cellsInColumn.forEach(cell => {
                 cell.classList.add('table-frozen-column');
-                cell.style.left = ``$`{currentLeft}px``;
+                cell.style.left = `${currentLeft}px`;
             });
 
             // Mark the corresponding freeze button as active
-            const button = document.querySelector(``.freeze-column-btn[data-column-index="`$`{colIndex}"]``);
+            const button = document.querySelector(`.freeze-column-btn[data-column-index="${colIndex}"]`);
             if (button) {
                 button.classList.add('active');
             }
@@ -2753,7 +2499,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Calculate the width of the frozen column to offset the next one
             // This is a simplified approach, in a real complex table with variable widths,
             // you might need a more robust calculation or a library.
-            const headerCell = table.querySelector(``th:nth-child(`$`{colIndex + 1})``);
+            const headerCell = table.querySelector(`th:nth-child(${colIndex + 1})`);
             if (headerCell) {
                 currentLeft += headerCell.offsetWidth;
             }
@@ -2785,11 +2531,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Re-apply frozen columns on window resize to adjust 'left' positions
     window.addEventListener('resize', applyFrozenColumns);
 });
-"@
-$jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf8
+EOF
 
-# Create custom admin base template
-@"
+# Create core/templates/admin/base_site.html
+cat <<'EOF' > core/templates/admin/base_site.html
 {% extends "admin/base.html" %}
 
 {% block title %}{{ title }} | {{ site_title|default:_('A R P A') }}{% endblock %}
@@ -2799,10 +2544,10 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
-"@ | Out-File -FilePath "core/templates/admin/base_site.html" -Encoding utf8
+EOF
 
-# Create master template
-@"
+# Create core/templates/master.html
+cat <<'EOF' > core/templates/master.html
 <!DOCTYPE html>
 <html>
 <head>
@@ -2877,10 +2622,10 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     <script src="{% static 'js/freeze_columns.js' %}"></script>
 </body>
 </html>
-"@ | Out-File -FilePath "core/templates/master.html" -Encoding utf8
+EOF
 
-# Create home template
-@"
+# Create core/templates/home.html
+cat <<'EOF' > core/templates/home.html
 {% extends "master.html" %}
 {% load humanize %}
 {% load static %}
@@ -3013,10 +2758,10 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     });
 </script>
 {% endblock %}
-"@ | Out-File -FilePath "core/templates/home.html" -Encoding utf8
+EOF
 
-# Create login template
-@"
+# Create core/templates/registration/login.html
+cat <<'EOF' > core/templates/registration/login.html
 {% extends "master.html" %}
 
 {% block title %}ARPA{% endblock %}
@@ -3086,10 +2831,10 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     </div>
 </div>
 {% endblock %}
-"@ | Out-File -FilePath "core/templates/registration/login.html" -Encoding utf8
+EOF
 
-# Create register template
-@"
+# Create core/templates/registration/register.html
+cat <<'EOF' > core/templates/registration/register.html
 {% extends "master.html" %}
 
 {% block title %}Registro{% endblock %}
@@ -3126,7 +2871,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </div>
 
                         <div class="mb-3">
-                            <input type="password" name="password1" class="form-control form-control-lg" id="password1" placeholder="Clave" required>
+                            <input type="password" name="password_confirmation" class="form-control form-control-lg" id="password_confirmation" placeholder="Clave" required>
                         </div>
 
                         <div class="mb-3">
@@ -3155,10 +2900,10 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     </div>
 </div>
 {% endblock %}
-"@ | Out-File -FilePath "core/templates/registration/register.html" -Encoding utf8
+EOF
 
-# Create import template
-@"
+# Create core/templates/import.html
+cat <<'EOF' > core/templates/import.html
 {% extends "master.html" %}
 {% load static %}
 
@@ -3381,10 +3126,10 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     </div>
 </div>
 {% endblock %}
-"@ | Out-File -FilePath "core/templates/import.html" -Encoding utf8
+EOF
 
-# Create persons template
-@"
+# Create core/templates/persons.html
+cat <<'EOF' > core/templates/persons.html
 {% extends "master.html" %}
 {% load static %}
 
@@ -3394,6 +3139,9 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 {% block navbar_buttons %}
 <a href="/" class="btn btn-custom-primary" title="Dashboard">
     <i class="fas fa-chart-pie"></i>
+</a>
+<a href="{% url 'person_list' %}" class="btn btn-custom-primary" title="Personas">
+    <i class="fas fa-users"></i>
 </a>
 <a href="{% url 'tcs_list' %}" class="btn btn-custom-primary" title="Tarjetas">
     <i class="far fa-credit-card"></i>
@@ -3610,9 +3358,10 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
     </div>
 </div>
 {% endblock %}
-"@ | Out-File -FilePath "core/templates/persons.html" -Encoding utf8
+EOF
 
-@"
+# Create core/templates/tcs.html
+cat <<'EOF' > core/templates/tcs.html
 {% extends "master.html" %}
 {% load static %}
 
@@ -3938,7 +3687,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Clean año values by removing .0
     function cleanAñoValues() {
-        const añoCells = document.querySelectorAll('td:nth-child(14)'); // Año is the 14th column (1-indexed)
+        const añoCells = document.querySelectorAll('td:nth-child(14)'); // Año is the 14th column (1-indexed) 
         
         añoCells.forEach(cell => {
             if (cell.textContent && cell.textContent.includes('.0')) {
@@ -3958,7 +3707,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const row = rows[i];
             // Skip the "No transactions" row
             const isNoResultsRow = row.querySelector('td[colspan="18"]');
-            if (isNoResultsRow) {
+            if (isNoResultsRow) { 
                 continue; 
             }
             
@@ -4096,11 +3845,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-"@ | Out-File -FilePath "core/templates/tcs.html" -Encoding utf8
+EOF
 
-
-# details template
-@" 
+# Create core/templates/details.html
+cat <<'EOF' > core/templates/details.html
 {% extends "master.html" %}
 {% load static %}
 {% load humanize %}
@@ -4135,8 +3883,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% block content %}
 <div class="row">
-    <div class="col-md-6 mb-4"> {# Column for Informacion Personal - half width #}
-        <div class="card h-100"> {# Added h-100 for equal height #}
+    <div class="col-md-6 mb-4"> {# Column for Informacion Personal - half width #} 
+        <div class="card h-100"> {# Added h-100 for equal height #} 
             <div class="card-header bg-light">
                 <h5 class="mb-0">Informacion Personal</h5>
             </div>
@@ -4282,10 +4030,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 {% endblock %}
-"@ | Out-File -FilePath "core/templates/details.html" -Encoding utf8
+EOF
 
-# Create alert template
-@"
+# Create core/templates/alerts.html
+cat <<'EOF' > core/templates/alerts.html
 {% extends "master.html" %}
 {% load static %}
 
@@ -4480,33 +4228,31 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 {% endblock %}
-"@ | Out-File -FilePath "core/templates/alerts.html" -Encoding utf8
+EOF
 
 # Update settings.py
-    $settingsContent = Get-Content -Path ".\arpa\settings.py" -Raw
-    $settingsContent = $settingsContent -replace "INSTALLED_APPS = \[", "INSTALLED_APPS = [
+sed -i "s/INSTALLED_APPS = [/
+INSTALLED_APPS = [
     'core.apps.CoreConfig',
-    'django.contrib.humanize',"
-    $settingsContent = $settingsContent -replace "from pathlib import Path", "from pathlib import Path
-import os"
-    $settingsContent | Set-Content -Path ".\arpa\settings.py"
-    
-    # Configure database to use SQLite
-    $dbSettings = @"
+    'django.contrib.humanize',
+/" arpa/settings.py
+sed -i "s/from pathlib import Path/from pathlib import Path\nimport os/" arpa/settings.py
+
+# Configure database to use SQLite
+cat <<'EOF' > db_settings.py
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-"@
-    $settingsContent = Get-Content -Path ".\arpa\settings.py" -Raw
-    $settingsContent = $settingsContent -replace "(?s)DATABASES =.*?}.*?}", $dbSettings
-    $settingsContent | Set-Content -Path ".\arpa\settings.py"
-
+EOF
+# This is a bit tricky, I'll replace the whole DATABASES block
+awk 'BEGIN {p=1} /DATABASES =/ {print; print ""; system("cat db_settings.py"); p=0} p' arpa/settings.py > settings.tmp && mv settings.tmp arpa/settings.py
+rm db_settings.py
 
 # Add static files configuration
-Add-Content -Path ".\arpa\settings.py" -Value @"
+cat <<'EOF' >> arpa/settings.py
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
@@ -4523,20 +4269,17 @@ ADMIN_SITE_HEADER = "A R P A"
 ADMIN_SITE_TITLE = "ARPA Admin Portal"
 ADMIN_INDEX_TITLE = "Bienvenido a A R P A"
 
-LOGIN_REDIRECT_URL = '/'  
+LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'  
-"@
+EOF
 
-    # Run migrations
-    python3 manage.py makemigrations core
-    python3 manage.py migrate
+# Run migrations
+python3 manage.py makemigrations core
+python3 manage.py migrate
 
-    python3 manage.py collectstatic --noinput
+python3 manage.py collectstatic --noinput
 
-    # Start the server
-    Write-Host "🚀 Starting Django development server..." -ForegroundColor $GREEN
-    python3 manage.py runserver
-
-}
-
-arpa
+echo -e "${GREEN}🚀 Django project 'arpa' created successfully!${NC}"
+echo -e "${YELLOW}To start the development server, run:${NC}"
+echo -e "cd arpa"
+echo -e "python3 manage.py runserver"
