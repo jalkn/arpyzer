@@ -14,7 +14,7 @@ source .venv/bin/activate
 
 # Install required python3 packages
 pip install --upgrade pip
-pip install pyinstaller django whitenoise django-bootstrap-v5 xlsxwriter openpyxl pandas xlrd>=2.0.1 pdfplumber PyMuPDF msoffcrypto-tool fuzzywuzzy python-Levenshtein psycopg2-binary gunicorn
+pip install django whitenoise django-bootstrap-v5 xlsxwriter openpyxl pandas xlrd>=2.0.1 pdfplumber PyMuPDF msoffcrypto-tool fuzzywuzzy python-Levenshtein gunicorn
 
 # Create Django project
 django-admin startproject arpa
@@ -748,7 +748,7 @@ def main(request):
 
 @login_required
 def import_persons(request):
-    "View for importing persons data from Excel files"
+    """View for importing persons data from Excel files"""
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
         try:
@@ -814,7 +814,7 @@ def import_persons(request):
             if 'id' in df.columns:
                 output_columns_df['Id'] = df['id']
             if 'nombre_completo' in df.columns:
-                output_columns_df['NOMBRE COMPLETO'] = df['nombre_completo']
+                output_columns_df[' NOMBRE COMPLETO'] = df['nombre_completo']
             if 'cedula' in df.columns:
                 output_columns_df['Cedula'] = df['cedula']
             if 'estado' in df.columns:
@@ -1120,9 +1120,7 @@ def export_persons_excel(request):
     excel_file.seek(0)
 
     # Create the HTTP response
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    )
+    response = HttpResponse(excel_file.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="persons_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
     return response
 
@@ -1591,7 +1589,7 @@ def load_cedulas_data(base_dir):
             
             # --- START FIX: Normalizar columnas para hacer la verificación insensible a mayúsculas/minúsculas ---
             # 1. Normalizar las columnas del DataFrame cargado a minúsculas/snake_case
-            df.columns = df.columns.str.lower().str.replace(' ', '_')
+            df.columns = df.columns.str.lower().str.replace(' ', '_').str.strip()
             
             # 2. Definir los nombres de columna requeridos en formato normalizado
             required_normalized = ['nombre_completo', 'cedula', 'cargo']
@@ -1615,7 +1613,7 @@ def load_cedulas_data(base_dir):
                     df['Cedula'] = df['Cedula'].apply(clean_cedula_format)
                 
                 if 'NOMBRE COMPLETO' in df.columns:
-                    df['NOMBRE COMPLETO'] = df['NOMBRE COMPLETO'].astype(str).str.title().str.strip()
+                    df[' NOMBRE COMPLETO'] = df[' NOMBRE COMPLETO'].astype(str).str.title().str.strip()
                     
                 cedulas_df = df
                 cedulas_loaded = True
@@ -1655,14 +1653,14 @@ mc_transaccion_regex = re.compile(
     r"(\w{5,})\s+(\d{2}/\d{2}/\d{4})\s+(.*?)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+([\d,.]+)\s+(\d+/\d+)",
 )
 mc_nombre_regex = re.compile(r"SEÑOR \(A\):\s*(.*)")
-mc_tarjeta_regex = re.compile(r"TARJETA:\s+\*{12}(\d{4})")
+mc_tarjeta_regex = re.compile(r"TARJETA:\s+\*\*{12}(\d{4})")
 mc_moneda_regex = re.compile(r"ESTADO DE CUENTA EN:\s+(DOLARES|PESOS)")
 
 # --- Regex for Visa (from visa.py) ---
-visa_pattern_transaccion = re.compile(
+vista_pattern_transaccion = re.compile(
     r"(\d{6})\s+(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d,.]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,.]+)\s+([\d,.]+)\s+(\d+/\d+|0\.00)",
 )
-visa_pattern_tarjeta = re.compile(r"TARJETA:\s+\*{12}(\d{4})")
+vista_pattern_tarjeta = re.compile(r"TARJETA:\s+\*\*{12}(\d{4})")
 
 
 # Modified to accept base_dir, input_folder, and output_folder
@@ -2036,6 +2034,225 @@ def run_pdf_processing(base_dir, input_folder, output_folder):
         print(df_resultado_final.head())
     else:
         print("\n⚠️ No se extrajo ningún dato de los archivos PDF (MC o VISA).")
+EOF
+
+# Create core/clara.py
+cat <<'EOF' > core/clara.py
+import PyPDF2
+import pandas as pd
+import re
+import datetime
+import locale
+from PyPDF2.errors import PdfReadError
+# Importación necesaria para la normalización de texto
+import unicodedata 
+
+def extract_and_parse_data(pdf_path):
+    """
+    Extracts and parses transaction data from a PDF file, grouped by card.
+    """
+    parsed_rows = []
+
+    try:
+        # Set the locale to Spanish for date formatting
+        try:
+            locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+        except locale.Error:
+            try:
+                locale.setlocale(locale.LC_TIME, 'es_ES')
+            except locale.Error:
+                pass
+
+        with open(pdf_path, 'rb') as file:
+            reader = PyPDF2.PdfReader(file)
+
+            for page_number, page in enumerate(reader.pages, 1):
+                full_text = page.extract_text()
+                
+                # Regex to capture the entire card block.
+                card_block_pattern = re.compile(
+                    r'(Tarjeta\s+\*\s*\d{4}.*?)(?=Tarjeta\s+\*|\Z)',
+                    re.IGNORECASE | re.DOTALL
+                )
+                
+                # Regex to extract details from the card header.
+                card_details_pattern = re.compile(
+                    r'Tarjeta\s+\*\s*(\d{4})\s+·\s+(Virtual|Física)\s+(.*?)\s+·\s+ID\s+\d{8}',
+                    re.IGNORECASE | re.DOTALL
+                )
+
+                card_blocks = card_block_pattern.findall(full_text)
+
+                for block_text in card_blocks:
+                    card_details = card_details_pattern.search(block_text)
+                    
+                    if card_details:
+                        card_number = card_details.group(1)
+                        card_type = card_details.group(2)
+                        cardholder_name = card_details.group(3).strip()
+                        
+                        print(f"--- Found Card Block for {cardholder_name} ({card_number}) ---")
+                        
+                        # Regex to capture transaction line with both primary and secondary values
+                        transaction_line_pattern = re.compile(
+                            r'(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2})\s+' # 1: Date
+                            r'(.*?)\s+'                                                              # 2: Description
+                            r'(\d{6})\s*'                                                            # 3: Auth Num (6 digits)
+                            r'(\$?\s*[\d\.,]+)\s*'                                                   # 4: Value A (COP Value - Primary)
+                            r'(\$?\s*[\d\.,]+)?\s*'                                                  # 5: Value B (Secondary value, either COP or Foreign)
+                            r'(\bUSD\b|\bEUR\b|\bPEN\b)?',                                            # 6: Currency (optional)
+                            re.IGNORECASE | re.MULTILINE
+                        )
+                        
+                        transactions = transaction_line_pattern.findall(block_text)
+                        
+                        if not transactions:
+                            pass 
+                        
+                        for transaction in transactions:
+                            date = transaction[0].strip()
+                            description = transaction[1].strip()
+                            auth_num = transaction[2].strip()
+                            
+                            primary_value = transaction[3].strip()
+                            secondary_value = transaction[4].strip()
+                            moneda = transaction[5].strip() if transaction[5] else "COP"
+
+                            valor_cop = primary_value
+
+                            if secondary_value and not moneda:
+                                valor_original = secondary_value
+                            elif secondary_value and moneda:
+                                valor_original = secondary_value
+                            else:
+                                valor_original = primary_value
+
+                            try:
+                                date_obj = datetime.datetime.strptime(date, '%d %b %y')
+                                day_of_week = date_obj.strftime('%A').title()
+                                year = date_obj.year
+                            except ValueError:
+                                day_of_week = "N/A"
+                                year = "N/A"
+                            
+                            formatted_card_type = f"Clara {card_type}"
+
+                            parsed_rows.append([
+                                date, day_of_week, year, description, auth_num, valor_original,
+                                moneda, valor_cop, formatted_card_type, card_number,
+                                cardholder_name, pdf_path, page_number
+                            ])
+    except FileNotFoundError:
+        print(f"Error: The file '{pdf_path}' was not found.")
+        return []
+    except PdfReadError as e:
+        print(f"Error: Could not read '{pdf_path}'. The file might be corrupted or encrypted.")
+        print(f"PyPDF2 error: {e}")
+        return []
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return []
+
+    if not parsed_rows:
+        print("No transaction data was found in the PDF. Please check the file and the data format.")
+    
+    return parsed_rows
+
+def save_data_to_excel(df, output_excel_path):
+    """
+    Saves a pandas DataFrame to an Excel file with all required columns.
+    """
+    if df.empty:
+        print("No data to save.")
+        return
+
+    df.to_excel(output_excel_path, index=False)
+    print(f"Successfully saved {len(df)} rows to '{output_excel_path}' under the following columns:")
+    for col in df.columns:
+        print(f" - {col}")
+    print(f"Output file: {output_excel_path}")
+
+def read_personas_excel(excel_path):
+    """
+    Reads the PersonasTC.xlsx file into a DataFrame.
+    """
+    try:
+        personas_df = pd.read_excel(excel_path)
+        return personas_df
+    except FileNotFoundError:
+        print(f"Error: The file '{excel_path}' was not found. Check your working directory.")
+        return pd.DataFrame()
+    except Exception as e:
+        print(f"An unexpected error occurred while reading '{excel_path}': {e}")
+        return pd.DataFrame()
+
+# --- FUNCIÓN DE LIMPIEZA MEJORADA ---
+def clean_name(name):
+    if pd.isna(name):
+        return name
+    name = str(name)
+    # 1. Normalizar a NFD (Forma de Descomposición Canónica) y codificar a ASCII,
+    #    ignorando los caracteres que no se puedan mapear (elimina tildes y eñes).
+    name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('utf-8')
+    # 2. Convertir a mayúsculas
+    name = name.upper()
+    # 3. Eliminar todos los caracteres que NO sean letras o espacios
+    name = re.sub(r'[^A-Z\s]', '', name)
+    # 4. Eliminar espacios múltiples y trim
+    name = re.sub(r'\s+', ' ', name).strip()
+    return name
+
+
+if __name__ == "__main__":
+    pdf_file_name = "clara.pdf"
+    excel_file_name = "Clara.xlsx"
+    personas_file_name = "PersonasTC.xlsx"
+    
+    column_headers = ["Fecha Transacción", "Día", "Año", "Descripción", "Número de Autorización", "Valor Original", "Moneda", "Valor COP", "Tipo de Tarjeta", "Número de Tarjeta", "Tarjetahabiente", "Archivo", "Página"]
+
+    extracted_data = extract_and_parse_data(pdf_file_name)
+
+    if extracted_data:
+        df_clara = pd.DataFrame(extracted_data, columns=column_headers)
+
+        df_personas = read_personas_excel(personas_file_name)
+
+        if not df_personas.empty:
+            
+            # 1. Aplicar la limpieza agresiva a ambas columnas clave
+            df_clara['Tarjetahabiente_MergeKey'] = df_clara['Tarjetahabiente'].apply(clean_name)
+            
+            # Asegurarse de que la columna de nombres exista en el Excel
+            if 'NOMBRE COMPLETO' in df_personas.columns:
+                 df_personas[' NOMBRE COMPLETO_MergeKey'] = df_personas[' NOMBRE COMPLETO'].apply(clean_name)
+            else:
+                 print("\nError: Columna 'NOMBRE COMPLETO' no encontrada en PersonasTC.xlsx. No se puede continuar con la fusión.")
+                 save_data_to_excel(df_clara, excel_file_name)
+                 exit()
+
+            try:
+                # 2. Fusión usando las nuevas claves limpias y usando las columnas correctas en minúsculas
+                final_df = pd.merge(df_clara, 
+                                    df_personas[['NOMBRE COMPLETO', 'cedula', 'compania', 'cargo', 'area', ' NOMBRE COMPLETO_MergeKey']], 
+                                    how='left', 
+                                    left_on='Tarjetahabiente_MergeKey', 
+                                    right_on=' NOMBRE COMPLETO_MergeKey')
+                
+                # 3. Eliminar las columnas clave temporales
+                final_df.drop(['Tarjetahabiente_MergeKey', 'NOMBRE COMPLETO_MergeKey', 'NOMBRE COMPLETO'], axis=1, inplace=True)
+                
+                save_data_to_excel(final_df, excel_file_name)
+                
+            except KeyError as e:
+                print(f"\n--- ERROR EN NOMBRE DE COLUMNA ---\nError durante la fusión: Una o más columnas que intentó seleccionar de 'PersonasTC.xlsx' no se encontraron en el archivo: {e}")
+                print("Verifique la ortografía y el uso de minúsculas/mayúsculas de las columnas: 'cedula', 'compania', 'cargo', 'area'.")
+                print("Guardando solo los datos de transacción extraídos en 'Clara.xlsx'.")
+                save_data_to_excel(df_clara, excel_file_name)
+        else:
+            print("Guardando solo los datos de transacción extraídos en 'Clara.xlsx' (Falta o no se pudo leer 'PersonasTC.xlsx').")
+            save_data_to_excel(df_clara, excel_file_name)
+    else:
+        print("No se encontraron datos de transacciones en el PDF. Por favor, verifique el archivo y el formato de datos.")
 EOF
 
 # Create arpa/urls.py
@@ -3175,7 +3392,7 @@ cat <<'EOF' > core/templates/persons.html
             <div class="col-md-4">
                 <input type="text" 
                        name="q" 
-                       class="form-control" 
+                       class="form-control"
                        placeholder="Buscar persona o cedula" 
                        value="{{ request.GET.q }}">
             </div>
@@ -3785,7 +4002,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Get cell values
-            const categoryCell = row.cells[CATEGORY_COLUMN_INDEX];
+            const categoryCell = row.cells[CATEGORY_COLUMN_COLUMN_INDEX];
             const cardTypeCell = row.cells[CARD_TYPE_COLUMN_INDEX];
             const subcategoryCell = row.cells[SUBCATEGORY_COLUMN_INDEX];
             const zonaCell = row.cells[ZONA_COLUMN_INDEX];
@@ -4231,8 +4448,7 @@ cat <<'EOF' > core/templates/alerts.html
 EOF
 
 # Update settings.py
-sed -i "s/INSTALLED_APPS = [/
-INSTALLED_APPS = [
+sed -i "s/INSTALLED_APPS = [/\nINSTALLED_APPS = [
     'core.apps.CoreConfig',
     'django.contrib.humanize',
 /" arpa/settings.py
@@ -4269,7 +4485,7 @@ ADMIN_SITE_HEADER = "A R P A"
 ADMIN_SITE_TITLE = "ARPA Admin Portal"
 ADMIN_INDEX_TITLE = "Bienvenido a A R P A"
 
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = '/'  
 LOGOUT_REDIRECT_URL = '/accounts/login/'  
 EOF
 
