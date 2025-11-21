@@ -1515,25 +1515,29 @@ def delete_comment(request, cedula, comment_index):
 def import_tcs(request):
     if request.method == 'POST':
         pdf_files = request.FILES.getlist('visa_pdf_files')
+        clara_pdf_files = request.FILES.getlist('clara_pdf_files') # New line for Clara files
         pdf_password = request.POST.get('visa_pdf_password', '')
 
-        if not pdf_files:
+        # Check if at least one file type was uploaded
+        if not pdf_files and not clara_pdf_files:
             messages.error(request, 'No se seleccionaron archivos PDF.', extra_tags='import_tcs')
-            return redirect('import') # Updated from 'import_page'
+            return redirect('import')
 
+        # --- Process all uploaded files ---
         input_pdf_dir = os.path.join(settings.BASE_DIR, 'core', 'src', 'extractos')
         output_excel_dir = os.path.join(settings.BASE_DIR, 'core', 'src')
         tcs_excel_path = os.path.join(output_excel_dir, "tcs.xlsx") # Path to the output Excel
 
         os.makedirs(input_pdf_dir, exist_ok=True) # Ensure input directory exists
 
-        # Clear existing PDFs in the input_pdf_dir before saving new ones
+        # Clear existing PDFs in the input_pdf_dir before saving new ones.
         for filename in os.listdir(input_pdf_dir):
             if filename.endswith(".pdf"):
                 os.remove(os.path.join(input_pdf_dir, filename))
 
         files_saved = 0
-        for pdf_file in pdf_files:
+        # Combine both lists of files to save them
+        for pdf_file in pdf_files + clara_pdf_files:
             file_path = os.path.join(input_pdf_dir, pdf_file.name)
             try:
                 with open(file_path, 'wb+') as destination:
@@ -1543,6 +1547,7 @@ def import_tcs(request):
             except Exception as e:
                 messages.error(request, f"Error saving PDF '{pdf_file.name}': {e}", extra_tags='import_tcs')
 
+        # --- Run processing if files were saved ---
         if files_saved > 0:
             try:
                 tcs.pdf_password = pdf_password
@@ -1640,7 +1645,7 @@ def import_tcs(request):
         else:
             messages.warning(request, 'No se pudieron guardar los archivos PDF para procesar.', extra_tags='import_tcs')
 
-    return redirect('import') # Updated from 'import_page'
+    return redirect('import')
 
 
 # Function for handling categorias.xlsx upload
