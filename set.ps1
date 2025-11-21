@@ -56,7 +56,7 @@ def main():
 
     # Check if we are running in the packaged executable
     if getattr(sys, 'frozen', False):
-        print(f"Starting Django server at {{server_address}}...")
+        print(f"Starting Django server at {server_address}...")
 
         # Automatically open the browser
         import threading
@@ -68,7 +68,7 @@ def main():
         threading.Thread(target=open_browser).start()
 
         # Run the Django server command, disabling the reloader
-        execute_from_command_line(['manage.py', 'runserver', f'127.0.0.1:{{port}}', '--noreload'])
+        execute_from_command_line(['manage.py', 'runserver', f'127.0.0.1:{port}', '--noreload'])
 
     else:
         # Standard development run
@@ -622,12 +622,27 @@ def tcs_list(request):
             categoria = request.GET.get('categoria')
             subcategoria = request.GET.get('subcategoria')
             zona = request.GET.get('zona')
+            # New filters from request
+            cargo = request.GET.get('cargo')
+            compania = request.GET.get('compania')
+            area = request.GET.get('area')
+            moneda = request.GET.get('moneda')
+            dia = request.GET.get('dia')
+            año = request.GET.get('año')
+            numero_tarjeta_filter = request.GET.get('numero_tarjeta')
 
             # Get unique values for filter dropdowns (normalize everything to strings)
             tipos_tarjeta = set()
             categorias = set()
             subcategorias = set()
             zonas = set()
+            cargos = set()
+            companias = set()
+            areas = set()
+            monedas = set()
+            dias = set()
+            años = set()
+            numeros_tarjeta = set()
 
             def _safe_str(v):
                 # Normalize values to strings; return None for empty/N/A/None
@@ -654,12 +669,41 @@ def tcs_list(request):
                 z = _safe_str(transaction.get('zona'))
                 if z:
                     zonas.add(z)
+                # Collect new filter values
+                c = _safe_str(transaction['person'].get('cargo'))
+                if c:
+                    cargos.add(c)
+                co = _safe_str(transaction['person'].get('compania'))
+                if co:
+                    companias.add(co)
+                ar = _safe_str(transaction['person'].get('area'))
+                if ar:
+                    areas.add(ar)
+                m = _safe_str(transaction.get('moneda'))
+                if m:
+                    monedas.add(m)
+                d = _safe_str(transaction.get('dia'))
+                if d:
+                    dias.add(d)
+                a = _safe_str(transaction.get('año'))
+                if a:
+                    años.add(a)
+                nt = _safe_str(transaction.get('numero_tarjeta'))
+                if nt:
+                    numeros_tarjeta.add(nt)
 
             # Add the sets to context (sorted as strings)
             context['tipos_tarjeta'] = sorted(list(tipos_tarjeta))
             context['categorias'] = sorted(list(categorias))
             context['subcategorias'] = sorted(list(subcategorias))
             context['zonas'] = sorted(list(zonas))
+            context['cargos'] = sorted(list(cargos))
+            context['companias'] = sorted(list(companias))
+            context['areas'] = sorted(list(areas))
+            context['monedas'] = sorted(list(monedas))
+            context['dias'] = sorted(list(dias))
+            context['años'] = sorted(list(años))
+            context['numeros_tarjeta'] = sorted(list(numeros_tarjeta))
 
             # Apply filters
             filtered_list = []
@@ -675,11 +719,14 @@ def tcs_list(request):
                             transaction['person'].get('cedula', ''),
                             transaction['person'].get('cargo', ''),
                             transaction['person'].get('compania', ''),
+                            transaction.get('trm_cierre', ''),
+                            transaction.get('valor_original', ''),
+                            transaction.get('valor_cop', ''),
+                            transaction.get('numero_autorizacion', ''),
+                            transaction.get('fecha_transaccion', ''),
                             transaction.get('descripcion', ''),
                             transaction.get('tipo_tarjeta', ''),
                             transaction.get('numero_tarjeta', ''),
-                            transaction.get('fecha_transaccion', ''),
-                            transaction.get('numero_autorizacion', ''),
                             transaction.get('categoria', ''),
                             transaction.get('subcategoria', ''),
                             transaction.get('zona', ''),
@@ -692,14 +739,28 @@ def tcs_list(request):
                 trans_cat = _safe_str(transaction.get('categoria'))
                 trans_sub = _safe_str(transaction.get('subcategoria'))
                 trans_zona = _safe_str(transaction.get('zona'))
+                trans_cargo = _safe_str(transaction['person'].get('cargo'))
+                trans_compania = _safe_str(transaction['person'].get('compania'))
+                trans_area = _safe_str(transaction['person'].get('area'))
+                trans_moneda = _safe_str(transaction.get('moneda'))
+                trans_dia = _safe_str(transaction.get('dia'))
+                trans_año = _safe_str(transaction.get('año'))
+                trans_numero_tarjeta = _safe_str(transaction.get('numero_tarjeta'))
 
                 matches_tipo = (not tipo_tarjeta) or (trans_tipo and trans_tipo.lower() == tipo_tarjeta.lower())
                 matches_categoria = (not categoria) or (trans_cat and trans_cat.lower() == categoria.lower())
                 matches_subcategoria = (not subcategoria) or (trans_sub and trans_sub.lower() == subcategoria.lower())
                 matches_zona = (not zona) or (trans_zona and trans_zona.lower() == zona.lower())
+                matches_cargo = (not cargo) or (trans_cargo and trans_cargo.lower() == cargo.lower())
+                matches_compania = (not compania) or (trans_compania and trans_compania.lower() == compania.lower())
+                matches_area = (not area) or (trans_area and trans_area.lower() == area.lower())
+                matches_moneda = (not moneda) or (trans_moneda and trans_moneda.lower() == moneda.lower())
+                matches_dia = (not dia) or (trans_dia and trans_dia.lower() == dia.lower())
+                matches_año = (not año) or (trans_año and str(trans_año).lower() == str(año).lower())
+                matches_numero_tarjeta = (not numero_tarjeta_filter) or (trans_numero_tarjeta and trans_numero_tarjeta.lower() == numero_tarjeta_filter.lower())
 
                 # Add transaction if it matches all active filters
-                if matches_global and matches_tipo and matches_categoria and matches_subcategoria and matches_zona:
+                if matches_global and matches_tipo and matches_categoria and matches_subcategoria and matches_zona and matches_cargo and matches_compania and matches_area and matches_moneda and matches_dia and matches_año and matches_numero_tarjeta:
                     filtered_list.append(transaction)
 
             transactions_list = filtered_list
@@ -733,6 +794,9 @@ def tcs_list(request):
 
     return render(request, 'tcs.html', context)
 
+from django.db.models import Count
+import json
+
 @login_required
 def main(request):
     """
@@ -746,7 +810,101 @@ def main(request):
         # Count for retired persons
         'retired_person_count': Person.objects.filter(estado='Retirado').count(),
         'tc_count': CreditCard.objects.count(),
+        # Count for transactions on Sunday
+        'domingo_tc_count': CreditCard.objects.filter(dia='Domingo').count(),
     }
+
+    # --- Pivot Table Data: Category per Year (Counts and Totals) ---
+    # Fetch all relevant transactions
+    transactions = CreditCard.objects.exclude(categoria__isnull=True).exclude(categoria='').exclude(año__isnull=True).exclude(año='').values('categoria', 'año', 'valor_cop')
+    
+    # Prepare data structure for the pivot table
+    pivot_data = {}
+    # Get a sorted list of all unique years from the database to use as headers
+    db_years = {t['año'] for t in transactions}
+    
+    # Define the required years and combine them with the years from the database
+    required_years = {'2022', '2023', '2024'}
+    all_years = sorted([y for y in list(set(db_years) | required_years) if y != 'nan'])
+
+    # Process transactions in Python to calculate counts and sums
+    for item in transactions:
+        category = item['categoria']
+        year = item['año']
+        
+        # Initialize the nested dictionary for the category if it's not already there
+        if category not in pivot_data:
+            pivot_data[category] = {y: {'count': 0, 'total_cop': 0.0} for y in all_years}
+
+        # Increment count
+        if year in pivot_data[category]:
+            pivot_data[category][year]['count'] += 1
+
+            # Safely convert valor_cop string to float and add to total
+            try:
+                valor_cop_str = item.get('valor_cop', '0').replace('.', '').replace(',', '.')
+                pivot_data[category][year]['total_cop'] += float(valor_cop_str)
+            except (ValueError, TypeError):
+                pass  # Ignore if conversion fails
+
+    # Calculate row and column totals for the pivot table
+    column_totals = {year: {'count': 0, 'total_cop': 0.0} for year in all_years}
+    grand_total = {'count': 0, 'total_cop': 0.0}
+
+    for category, year_data in pivot_data.items():
+        row_total_count = sum(data['count'] for data in year_data.values())
+        row_total_cop = sum(data['total_cop'] for data in year_data.values())
+        pivot_data[category]['total'] = {'count': row_total_count, 'total_cop': row_total_cop}
+
+        for year, data in year_data.items():
+            if year in column_totals:
+                column_totals[year]['count'] += data['count']
+                column_totals[year]['total_cop'] += data['total_cop']
+
+    grand_total['count'] = sum(totals['count'] for totals in column_totals.values())
+    grand_total['total_cop'] = sum(totals['total_cop'] for totals in column_totals.values())
+
+    context['pivot_data'] = pivot_data
+    context['pivot_years'] = all_years
+    context['pivot_column_totals'] = column_totals
+    context['pivot_grand_total'] = grand_total
+
+    # --- Pivot Table Data: Category per Area ---
+    area_transactions = CreditCard.objects.select_related('person').exclude(
+        categoria__isnull=True
+    ).exclude(
+        categoria=''
+    ).values('categoria', 'person__area', 'valor_cop')
+
+    area_pivot_data = {}
+    all_areas = sorted(list(
+        Person.objects.exclude(area__isnull=True).exclude(area='').values_list('area', flat=True).distinct()
+    ))
+
+    for item in area_transactions:
+        category = item['categoria']
+        area = item['person__area']
+        if not area: continue
+
+        if category not in area_pivot_data:
+            area_pivot_data[category] = {a: {'count': 0, 'total_cop': 0.0} for a in all_areas}
+        
+        if area in area_pivot_data[category]:
+            area_pivot_data[category][area]['count'] += 1
+            try:
+                valor_cop_str = item.get('valor_cop', '0').replace('.', '').replace(',', '.')
+                area_pivot_data[category][area]['total_cop'] += float(valor_cop_str)
+            except (ValueError, TypeError):
+                pass
+
+    for category, area_data in area_pivot_data.items():
+        area_pivot_data[category]['total'] = {
+            'count': sum(data['count'] for data in area_data.values()),
+            'total_cop': sum(data['total_cop'] for data in area_data.values())
+        }
+
+    context['area_pivot_data'] = area_pivot_data
+    context['all_areas'] = all_areas
 
     return render(request, 'home.html', context)
 
@@ -1128,6 +1286,8 @@ def export_persons_excel(request):
     response['Content-Disposition'] = f'attachment; filename="persons_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
     return response
 
+from django.db.models import Count
+import json
 
 @login_required
 def person_details(request, cedula):
@@ -1135,17 +1295,138 @@ def person_details(request, cedula):
     View to display the details of a specific person, including related and credit card transactions.
     """
     myperson = get_object_or_404(Person, cedula=cedula)
-    
-    # Retrieve all CreditCard objects associated with the person
-    credit_card_transactions = CreditCard.objects.filter(person=myperson)
-    
+    all_transactions = CreditCard.objects.filter(person=myperson).order_by('-fecha_transaccion')
+
+    # --- Pivot Table & Chart Data Calculation ---
+    # Fetch all relevant transaction data for the person
+    person_transactions_data = all_transactions.exclude(categoria__isnull=True).exclude(categoria='').exclude(año__isnull=True).exclude(año='').values('categoria', 'año', 'valor_cop')
+
+    # Prepare data structure for the pivot table
+    person_pivot_data = {}
+    db_years = {t['año'] for t in person_transactions_data}
+    required_years = {'2022', '2023', '2024'}
+    all_person_years = sorted(list(set(db_years) | required_years))
+
+    # Process transactions to calculate counts and sums
+    for item in person_transactions_data:
+        category = item['categoria']
+        year = item['año']
+        if category not in person_pivot_data:
+            person_pivot_data[category] = {y: {'count': 0, 'total_cop': 0.0} for y in all_person_years}
+        if year in person_pivot_data[category]:
+            person_pivot_data[category][year]['count'] += 1
+            try:
+                valor_cop_str = item.get('valor_cop', '0').replace('.', '').replace(',', '.')
+                person_pivot_data[category][year]['total_cop'] += float(valor_cop_str)
+            except (ValueError, TypeError):
+                pass
+
+    # Calculate row and column totals for the person-specific pivot table
+    person_column_totals = {year: {'count': 0, 'total_cop': 0.0} for year in all_person_years}
+    person_grand_total = {'count': 0, 'total_cop': 0.0}
+
+    for category, year_data in person_pivot_data.items():
+        row_total_count = sum(data['count'] for data in year_data.values())
+        row_total_cop = sum(data['total_cop'] for data in year_data.values())
+        person_pivot_data[category]['total'] = {'count': row_total_count, 'total_cop': row_total_cop}
+
+        for year, data in year_data.items():
+            if year in person_column_totals:
+                person_column_totals[year]['count'] += data['count']
+                person_column_totals[year]['total_cop'] += data['total_cop']
+
+    person_grand_total['count'] = sum(totals['count'] for totals in person_column_totals.values())
+    person_grand_total['total_cop'] = sum(totals['total_cop'] for totals in person_column_totals.values())
+
+
+    # Aggregate transaction counts by year for the person
+    yearly_counts = all_transactions.values('año').annotate(count=Count('año')).order_by('año')
+
+    yearly_chart_labels = [item['año'] if item['año'] else 'Sin Año' for item in yearly_counts]
+    yearly_chart_data = [item['count'] for item in yearly_counts]
+
+    # --- Filtering Logic ---
+    q = request.GET.get('q', '')
+    tipo_tarjeta = request.GET.get('tipo_tarjeta', '')
+    categoria = request.GET.get('categoria', '')
+    subcategoria = request.GET.get('subcategoria', '')
+    zona = request.GET.get('zona', '')
+    dia = request.GET.get('dia', '')
+    año = request.GET.get('año', '')
+
+    # Get unique values for filter dropdowns from all transactions for this person
+    tipos_tarjeta = sorted(all_transactions.values_list('tipo_tarjeta', flat=True).distinct())
+    categorias = sorted(all_transactions.values_list('categoria', flat=True).distinct())
+    subcategorias = sorted(all_transactions.values_list('subcategoria', flat=True).distinct())
+    zonas = sorted(all_transactions.values_list('zona', flat=True).distinct())
+    dias = sorted(all_transactions.values_list('dia', flat=True).distinct())
+    años = sorted(all_transactions.values_list('año', flat=True).distinct())
+
+    # Start with all transactions and apply filters
+    filtered_transactions = all_transactions
+
+    if q:
+        filtered_transactions = filtered_transactions.filter(
+            Q(descripcion__icontains=q) |
+            Q(categoria__icontains=q) |
+            Q(subcategoria__icontains=q) |
+            Q(tipo_tarjeta__icontains=q) |
+            Q(dia__icontains=q) |
+            Q(año__icontains=q) |
+            Q(valor_cop__icontains=q) |
+            Q(zona__icontains=q) |
+            Q(numero_autorizacion__icontains=q)
+        )
+
+    if tipo_tarjeta:
+        filtered_transactions = filtered_transactions.filter(tipo_tarjeta=tipo_tarjeta)
+    if categoria:
+        filtered_transactions = filtered_transactions.filter(categoria=categoria)
+    if subcategoria:
+        filtered_transactions = filtered_transactions.filter(subcategoria=subcategoria)
+    if zona:
+        filtered_transactions = filtered_transactions.filter(zona=zona)
+    if dia:
+        filtered_transactions = filtered_transactions.filter(dia=dia)
+    if año:
+        filtered_transactions = filtered_transactions.filter(año=año)
+
+    # Pagination
+    paginator = Paginator(filtered_transactions, 25)  # Show 25 transactions per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'myperson': myperson,
         'alerts_count': Person.objects.filter(revisar=True).count(),
-        'credit_card_transactions': credit_card_transactions, # Add the credit card transactions to the context
+        'credit_card_transactions': page_obj,  # Pass paginated and filtered transactions
+        'page_obj': page_obj,
+        'paginator': paginator,
+        
+        # Dropdown options
+        'tipos_tarjeta': tipos_tarjeta,
+        'categorias': categorias,
+        'subcategorias': subcategorias,
+        'zonas': zonas,
+        'dias': dias,
+        'años': años,
+
+        # For preserving filter parameters in pagination links
+        'all_params': {k: v for k, v in request.GET.items() if k != 'page'},
+
+        # Pivot table data for the person
+        'person_pivot_data': person_pivot_data,
+        'person_pivot_years': all_person_years,
+        'person_pivot_column_totals': person_column_totals,
+        'person_pivot_grand_total': person_grand_total,
+
+        # Yearly chart data
+        'yearly_chart_labels': json.dumps(yearly_chart_labels),
+        'yearly_chart_data': json.dumps(yearly_chart_data),
     }
     
     return render(request, 'details.html', context)
+
 
 
 @login_required
@@ -2286,12 +2567,18 @@ from django import template
 register = template.Library()
 
 @register.filter
+def get_item(dictionary, key):
+    """Allows accessing dictionary items with a variable key in templates."""
+    if hasattr(dictionary, 'get'):
+        return dictionary.get(key)
+    return None
+
+@register.filter
 def split_lines(value):
     """Splits a string by newlines and returns a list of lines."""
     if isinstance(value, str):
-        # Only split if it's a string; handle None/empty string gracefully
         return value.splitlines()
-    return [] # Return an empty list for non-string or None values
+    return []
 "@
 
 # Update template filters __init__.py
@@ -2884,6 +3171,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 {% extends "master.html" %}
 {% load humanize %}
 {% load static %}
+{% load my_filters %}
 
 {% block title %}A R P A{% endblock %}
 {% block navbar_title %}Dashboard{% endblock %}
@@ -2958,60 +3246,131 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
             </div>
         </a>
     </div>
+
+    <div class="col-md-3">
+        <a href="{% url 'tcs_list' %}?dia=Domingo" class="card h-100 shadow-sm border-0 text-decoration-none">
+            <div class="card-body text-center p-4">
+                <i class="fas fa-calendar-day fa-3x text-warning mb-3"></i>
+                <h5 class="card-title fw-normal mb-1">Transacciones (Domingos)</h5>
+                <h2 class="card-text fw-bold text-dark">{{ domingo_tc_count|intcomma }}</h2>
+            </div>
+        </a>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<div class="row g-4 mt-2">
+    <div class="col-lg-12">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Transacciones por Categoría y Año</h5>
+            </div>
+            <div class="card-body">
+                {% if pivot_data %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered text-center">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-start">Categoría</th>
+                                    {% for year in pivot_years %}
+                                        <th colspan="2">{{ year|floatformat:"0" }}</th>
+                                    {% endfor %}
+                                    <th colspan="2">Total</th>
+                                </tr>
+                                <tr>
+                                    <th></th>
+                                    {% for year in pivot_years %}
+                                        <th># Trans.</th>
+                                        <th>Valor COP</th>
+                                    {% endfor %}
+                                    <th># Trans.</th>
+                                    <th>Valor COP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category, year_counts in pivot_data.items %}
+                                <tr>
+                                    <td class="text-start fw-bold">{{ category }}</td>
+                                    {% for year in pivot_years %}
+                                        <td>{{ year_counts|get_item:year|get_item:'count'|intcomma }}</td>
+                                        <td>`${{ year_counts|get_item:year|get_item:'total_cop'|floatformat:2|intcomma }}</td>
+                                    {% endfor %}
+                                    <td class="fw-bold">{{ year_counts.total.count|intcomma }}</td>
+                                    <td class="fw-bold">`${{ year_counts.total.total_cop|floatformat:2|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-group-divider fw-bold">
+                                <tr>
+                                    <td class="text-start">Total General</td>
+                                    {% for year in pivot_years %}
+                                        <td>{{ pivot_column_totals|get_item:year|get_item:'count'|intcomma }}</td>
+                                        <td>`${{ pivot_column_totals|get_item:year|get_item:'total_cop'|floatformat:2|intcomma }}</td>
+                                    {% endfor %}
+                                    <td>{{ pivot_grand_total.count|intcomma }}</td>
+                                    <td>`${{ pivot_grand_total.total_cop|floatformat:2|intcomma }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-5">No hay datos suficientes para mostrar el gráfico.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const declarationsCtx = document.getElementById('declarationsChart').getContext('2d');
-        const declarationsChart = new Chart(declarationsCtx, {
-            type: 'bar',
-            data: {
-                labels: ['2021', '2022', '2023', '2024'],
-                datasets: [{
-                    label: 'NUmero de Declaraciones',
-                    data: [
-                        "{{ declarations_2021_count|default:0 }}",
-                        "{{ declarations_2022_count|default:0 }}",
-                        "{{ declarations_2023_count|default:0 }}",
-                        "{{ declarations_2024_count|default:0 }}"
-                    ],
-                    backgroundColor: [
-                        '#003366',
-                        '#005588',
-                        '#0077AA',
-                        '#0099CC'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Cantidad'
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Anual'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                }
-            }
-        });
-    });
-</script>
+<div class="row g-4 mt-2">
+    <div class="col-lg-12">
+        <div class="card h-100 shadow-sm border-0">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Transacciones por Categoría y Área</h5>
+            </div>
+            <div class="card-body">
+                {% if area_pivot_data %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered text-center">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-start">Categoría</th>
+                                    {% for area in all_areas %}
+                                        <th colspan="2">{{ area }}</th>
+                                    {% endfor %}
+                                    <th colspan="2">Total</th>
+                                </tr>
+                                <tr>
+                                    <th></th>
+                                    {% for area in all_areas %}
+                                        <th># Trans.</th>
+                                        <th>Valor COP</th>
+                                    {% endfor %}
+                                    <th># Trans.</th>
+                                    <th>Valor COP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category, area_counts in area_pivot_data.items %}
+                                <tr>
+                                    <td class="text-start fw-bold">{{ category }}</td>
+                                    {% for area in all_areas %}
+                                        <td>{{ area_counts|get_item:area|get_item:'count'|intcomma }}</td>
+                                        <td>`${{ area_counts|get_item:area|get_item:'total_cop'|floatformat:2|intcomma }}</td>
+                                    {% endfor %}
+                                    <td class="fw-bold">{{ area_counts.total.count|intcomma }}</td>
+                                    <td class="fw-bold">`${{ area_counts.total.total_cop|floatformat:2|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-5">No hay datos suficientes para mostrar el gráfico.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 "@ | Out-File -FilePath "core/templates/home.html" -Encoding utf8
 
@@ -3656,7 +4015,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                 <span class="badge bg-success">
                     {{ page_obj.paginator.count }} registros
                 </span>
-                {% if request.GET.q or request.GET.compania or request.GET.numero_tarjeta or request.GET.fecha_transaccion_start or request.GET.fecha_transaccion_end %}
+                {% if request.GET.q or request.GET.tipo_tarjeta or request.GET.categoria or request.GET.subcategoria or request.GET.zona or request.GET.cargo or request.GET.compania or request.GET.area or request.GET.moneda or request.GET.dia or request.GET.año or request.GET.numero_tarjeta %}
                 {% endif %}
             </div>
             
@@ -3669,7 +4028,34 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                        id="global-search-input">
             </div>
 
-            <div class="col-md-2">
+            <div class="col-md-1">
+                <select class="form-select form-select-lg" name="cargo">
+                    <option value="">Cargo</option>
+                    {% for c in cargos %}
+                        <option value="{{ c }}" {% if request.GET.cargo == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-1">
+                <select class="form-select form-select-lg" name="area">
+                    <option value="">Área</option>
+                    {% for a in areas %}
+                        <option value="{{ a }}" {% if request.GET.area == a %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-1">
+                <select class="form-select form-select-lg" name="compania">
+                    <option value="">Compañía</option>
+                    {% for c in companias %}
+                        <option value="{{ c }}" {% if request.GET.compania == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-1">
                 <select class="form-select form-select-lg" name="tipo_tarjeta" id="cardtype-filter-select">
                     <option value="">Tipo Tarjeta</option>
                     {% for tipo in tipos_tarjeta %}
@@ -3677,8 +4063,35 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                     {% endfor %}
                 </select>
             </div>
-            
-            <div class="col-md-2">
+
+            <div class="col-md-1">
+                <select class="form-select form-select-lg" name="moneda">
+                    <option value="">Moneda</option>
+                    {% for m in monedas %}
+                        <option value="{{ m }}" {% if request.GET.moneda == m %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-1">
+                <select class="form-select form-select-lg" name="dia">
+                    <option value="">Día</option>
+                    {% for d in dias %}
+                        <option value="{{ d }}" {% if request.GET.dia == d %}selected{% endif %}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-1">
+                <select class="form-select form-select-lg" name="año">
+                    <option value="">Año</option>
+                    {% for a in años %}
+                        <option value="{{ a }}" {% if request.GET.año == a|stringformat:"s" %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-1">
                 <select class="form-select form-select-lg" name="categoria" id="category-filter-select">
                     <option value="">Categoría</option>
                     {% for cat in categorias %}
@@ -3687,7 +4100,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                 </select>
             </div>
             
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <select class="form-select form-select-lg" name="subcategoria" id="subcategory-filter-select">
                     <option value="">Subcategoría</option>
                     {% for subcat in subcategorias %}
@@ -3705,7 +4118,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                 </select>
             </div>
             
-            <div class="col-md-2 d-flex gap-2 align-items-center">
+            <div class="col-md-1 d-flex gap-2 align-items-center">
                 <button type="submit" class="btn btn-primary btn-sm" title="Aplicar filtros de formulario">
                     <i class="fas fa-filter"></i>
                 </button>
@@ -3714,7 +4127,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                 </a>
             </div>
             
-            {% if request.GET.q or request.GET.tipo_tarjeta or request.GET.categoria or request.GET.subcategoria or request.GET.zona %}
+            {% if request.GET.q or request.GET.tipo_tarjeta or request.GET.categoria or request.GET.subcategoria or request.GET.zona or request.GET.cargo or request.GET.compania or request.GET.area or request.GET.moneda or request.GET.dia or request.GET.año or request.GET.numero_tarjeta %}
                 <div class="mt-2">
                     <span class="badge bg-info">
                         Filtros activos:
@@ -3723,6 +4136,12 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         {% if request.GET.categoria %}<span class="badge bg-primary">Categoría: {{ request.GET.categoria }}</span>{% endif %}
                         {% if request.GET.subcategoria %}<span class="badge bg-primary">Subcategoría: {{ request.GET.subcategoria }}</span>{% endif %}
                         {% if request.GET.zona %}<span class="badge bg-primary">Zona: {{ request.GET.zona }}</span>{% endif %}
+                        {% if request.GET.cargo %}<span class="badge bg-primary">Cargo: {{ request.GET.cargo }}</span>{% endif %}
+                        {% if request.GET.compania %}<span class="badge bg-primary">Compañía: {{ request.GET.compania }}</span>{% endif %}
+                        {% if request.GET.area %}<span class="badge bg-primary">Área: {{ request.GET.area }}</span>{% endif %}
+                        {% if request.GET.moneda %}<span class="badge bg-primary">Moneda: {{ request.GET.moneda }}</span>{% endif %}
+                        {% if request.GET.año %}<span class="badge bg-primary">Año: {{ request.GET.año }}</span>{% endif %}
+                        {% if request.GET.numero_tarjeta %}<span class="badge bg-primary">Número Tarjeta: {{ request.GET.numero_tarjeta }}</span>{% endif %}
                     </span>
                 </div>
             {% endif %}
@@ -3865,7 +4284,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                     {% empty %}
                         <tr>
                             <td colspan="18" class="text-center py-4" id="no-results-row">
-                                {% if request.GET.q or request.GET.compania or request.GET.numero_tarjeta or request.GET.fecha_transaccion_start or request.GET.fecha_transaccion_end or request.GET.category_filter %}
+                                {% if request.GET.q or request.GET.tipo_tarjeta or request.GET.categoria or request.GET.subcategoria or request.GET.zona or request.GET.cargo or request.GET.compania or request.GET.area or request.GET.moneda or request.GET.dia or request.GET.año or request.GET.numero_tarjeta %}
                                     Sin transacciones TC que coincidan con los filtros.
                                 {% else %}
                                     Sin transacciones TC
@@ -3921,179 +4340,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Define elements
-    const categoryFilter = document.getElementById('category-filter-select');
-    const cardTypeFilter = document.getElementById('cardtype-filter-select');
-    const subcategoryFilter = document.getElementById('subcategory-filter-select');
-    const zonaFilter = document.getElementById('zona-filter-select');
-    const tableBody = document.querySelector('#transactions-table tbody');
-    const rows = tableBody.getElementsByTagName('tr');
-    
-    // Define column indexes (0-indexed)
-    const CATEGORY_COLUMN_INDEX = 14; 
-    const CARD_TYPE_COLUMN_INDEX = 4;
-    const SUBCATEGORY_COLUMN_INDEX = 15;
-    const ZONA_COLUMN_INDEX = 16;
-
-    // Clean año values by removing .0
-    function cleanAñoValues() {
-        const añoCells = document.querySelectorAll('td:nth-child(14)'); // Año is the 14th column (1-indexed)
-        
-        añoCells.forEach(cell => {
-            if (cell.textContent && cell.textContent.includes('.0')) {
-                cell.textContent = cell.textContent.replace('.0', '');
-            }
-        });
-    }
-
-    // 1. Populate the dropdowns with unique values from the current page's data
-    function populateFilters() {
-        const categories = new Set();
-        const cardTypes = new Set();
-        const subcategories = new Set();
-        const zonas = new Set();
-        
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            // Skip the "No transactions" row
-            const isNoResultsRow = row.querySelector('td[colspan="18"]');
-            if (isNoResultsRow) {
-                continue; 
-            }
-            
-            // Collect values for all four columns
-            if (row.cells[CATEGORY_COLUMN_INDEX]) {
-                const category = row.cells[CATEGORY_COLUMN_INDEX].textContent.trim();
-                if (category) categories.add(category);
-            }
-            if (row.cells[CARD_TYPE_COLUMN_INDEX]) {
-                const cardType = row.cells[CARD_TYPE_COLUMN_INDEX].textContent.trim();
-                if (cardType) cardTypes.add(cardType);
-            }
-            if (row.cells[SUBCATEGORY_COLUMN_INDEX]) {
-                const subcategory = row.cells[SUBCATEGORY_COLUMN_INDEX].textContent.trim();
-                if (subcategory) subcategories.add(subcategory);
-            }
-            if (row.cells[ZONA_COLUMN_INDEX]) {
-                const zona = row.cells[ZONA_COLUMN_INDEX].textContent.trim();
-                if (zona) zonas.add(zona);
-            }
-        }
-        
-        // Function to append options to a select element
-        const appendOptions = (selectElement, values) => {
-            // Clear previous options (keep the "Filtrar por..." placeholder)
-            while (selectElement.options.length > 1) {
-                selectElement.remove(1); 
-            }
-
-            // Sort and append the new options
-            Array.from(values).sort().forEach(value => {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = value;
-                selectElement.appendChild(option);
-            });
-        };
-        
-        appendOptions(categoryFilter, categories);
-        appendOptions(cardTypeFilter, cardTypes);
-        appendOptions(subcategoryFilter, subcategories);
-        appendOptions(zonaFilter, zonas);
-    }
-    
-    // 2. Function to hide/show rows based on ALL selected filters
-    function filterTable() {
-        const selectedCategory = categoryFilter.value.toLowerCase().trim();
-        const selectedCardType = cardTypeFilter.value.toLowerCase().trim();
-        const selectedSubcategory = subcategoryFilter.value.toLowerCase().trim();
-        const selectedZona = zonaFilter.value.toLowerCase().trim();
-        
-        let visibleRowCount = 0;
-        const initialEmpty = (rows.length === 1 && rows[0].querySelector('td[colspan="18"]'));
-
-        // Remove any previously added temporary "no results" message
-        const tempNoResults = tableBody.querySelector('.js-no-results');
-        if (tempNoResults) {
-            tempNoResults.remove();
-        }
-
-        // Loop through all table rows
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const isNoResultsRow = row.querySelector('td[colspan="18"]');
-
-            if (isNoResultsRow) {
-                // Hide the original Django "No transactions" row if any filters are active
-                if (!initialEmpty && (selectedCategory !== "" || selectedCardType !== "" || selectedSubcategory !== "" || selectedZona !== "")) {
-                    row.style.display = "none";
-                } else if (initialEmpty && selectedCategory === "" && selectedCardType === "" && selectedSubcategory === "" && selectedZona === "") {
-                    // Keep the original Django message if the list was empty and no filter is selected
-                    row.style.display = "";
-                }
-                continue;
-            }
-
-            // Get cell values
-            const categoryCell = row.cells[CATEGORY_COLUMN_INDEX];
-            const cardTypeCell = row.cells[CARD_TYPE_COLUMN_INDEX];
-            const subcategoryCell = row.cells[SUBCATEGORY_COLUMN_INDEX];
-            const zonaCell = row.cells[ZONA_COLUMN_INDEX];
-
-            // Check Category match
-            let categoryMatch = (selectedCategory === "" || (categoryCell && categoryCell.textContent.toLowerCase().trim() === selectedCategory));
-
-            // Check Tipo Tarjeta match
-            let cardTypeMatch = (selectedCardType === "" || (cardTypeCell && cardTypeCell.textContent.toLowerCase().trim() === selectedCardType));
-            
-            // Check Subcategoría match
-            let subcategoryMatch = (selectedSubcategory === "" || (subcategoryCell && subcategoryCell.textContent.toLowerCase().trim() === selectedSubcategory));
-            
-            // Check Zona match
-            let zonaMatch = (selectedZona === "" || (zonaCell && zonaCell.textContent.toLowerCase().trim() === selectedZona));
-
-            // A row must match ALL active filters to be visible
-            if (categoryMatch && cardTypeMatch && subcategoryMatch && zonaMatch) {
-                row.style.display = ""; // Show row
-                visibleRowCount++;
-            } else {
-                row.style.display = "none"; // Hide row
-            }
-        }
-
-        // 3. Display a temporary "no results" message if all data rows are hidden by the filter
-        if (visibleRowCount === 0 && !initialEmpty) {
-            const tempRow = document.createElement('tr');
-            tempRow.className = 'js-no-results';
-            tempRow.innerHTML = '<td colspan="18" class="text-center py-4">Sin transacciones de TC que coincidan con los filtros seleccionados.</td>';
-            tableBody.appendChild(tempRow);
-        }
-    }
-
-    // Initialize everything
-    populateFilters();
-    filterTable();
-    cleanAñoValues(); // Call this to clean the año values
-
-    // Attach event listeners: Apply filter when any dropdown changes
-    categoryFilter.addEventListener('change', function() {
-        filterTable();
-        cleanAñoValues(); // Clean año values after filtering
-    });
-    cardTypeFilter.addEventListener('change', function() {
-        filterTable();
-        cleanAñoValues(); // Clean año values after filtering
-    });
-    subcategoryFilter.addEventListener('change', function() {
-        filterTable();
-        cleanAñoValues(); // Clean año values after filtering
-    });
-    zonaFilter.addEventListener('change', function() {
-        filterTable();
-        cleanAñoValues(); // Clean año values after filtering
-    });
-});
+// Client-side filtering script removed as filtering is now handled by the server.
 </script>
 {% endblock %}
 "@ | Out-File -FilePath "core/templates/tcs.html" -Encoding utf8
@@ -4102,7 +4349,6 @@ document.addEventListener('DOMContentLoaded', function() {
 # details template
 @" 
 {% extends "master.html" %}
-{% load static %}
 {% load humanize %}
 {% load my_filters %}
 
@@ -4135,7 +4381,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% block content %}
 <div class="row">
-    <div class="col-md-6 mb-4"> {# Column for Informacion Personal - half width #}
+    <div class="col-md-12 mb-4">
         <div class="card h-100"> {# Added h-100 for equal height #}
             <div class="card-header bg-light">
                 <h5 class="mb-0">Informacion Personal</h5>
@@ -4229,17 +4475,163 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Resumen de Transacciones por Categoría y Año</h5>
+            </div>
+            <div class="card-body">
+                {% if person_pivot_data %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-bordered text-center">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-start">Categoría</th>
+                                    {% for year in person_pivot_years %}
+                                        <th colspan="2">{{ year|floatformat:"0" }}</th>
+                                    {% endfor %}
+                                    <th colspan="2">Total</th>
+                                </tr>
+                                <tr>
+                                    <th></th>
+                                    {% for year in person_pivot_years %}
+                                        <th># Trans.</th>
+                                        <th>Valor COP</th>
+                                    {% endfor %}
+                                    <th># Trans.</th>
+                                    <th>Valor COP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category, year_data in person_pivot_data.items %}
+                                <tr>
+                                    <td class="text-start fw-bold">{{ category }}</td>
+                                    {% for year in person_pivot_years %}
+                                        <td>{{ year_data|get_item:year|get_item:'count'|intcomma }}</td>
+                                        <td>`${{ year_data|get_item:year|get_item:'total_cop'|floatformat:2|intcomma }}</td>
+                                    {% endfor %}
+                                    <td class="fw-bold">{{ year_data.total.count|intcomma }}</td>
+                                    <td class="fw-bold">`${{ year_data.total.total_cop|floatformat:2|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-group-divider fw-bold">
+                                <tr>
+                                    <td class="text-start">Total General</td>
+                                    {% for year in person_pivot_years %}
+                                        <td>{{ person_pivot_column_totals|get_item:year|get_item:'count'|intcomma }}</td>
+                                        <td>`${{ person_pivot_column_totals|get_item:year|get_item:'total_cop'|floatformat:2|intcomma }}</td>
+                                    {% endfor %}
+                                    <td>{{ person_pivot_grand_total.count|intcomma }}</td>
+                                    <td>`${{ person_pivot_grand_total.total_cop|floatformat:2|intcomma }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No hay datos de transacciones para mostrar en el gráfico.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Transacciones por Año</h5>
+            </div>
+            <div class="card-body d-flex justify-content-center align-items-center">
+                {% if yearly_chart_data and yearly_chart_data != '[]' %}
+                    <canvas id="yearlyChart"></canvas>
+                {% else %}
+                    <p class="text-muted">No hay datos de transacciones para mostrar en el gráfico.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="row mt-4">
     <div class="col-md-12">
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0">Transacciones TC</h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Transacciones TC</h5>
+                    <span class="badge bg-success">{{ page_obj.paginator.count }} registros</span>
+                </div>
             </div>
             <div class="card-body">
+                <!-- Filter Form -->
+                <form method="get" action="" class="row g-3 align-items-center mb-4" id="filter-form">
+                    <div class="col-md-3">
+                        <input type="text" name="q" class="form-control" placeholder="Buscar en transacciones..." value="{{ request.GET.q }}">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="tipo_tarjeta">
+                            <option value="">Tipo Tarjeta</option>
+                            {% for tipo in tipos_tarjeta %}
+                                <option value="{{ tipo }}" {% if request.GET.tipo_tarjeta == tipo %}selected{% endif %}>{{ tipo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="categoria">
+                            <option value="">Categoría</option>
+                            {% for cat in categorias %}
+                                <option value="{{ cat }}" {% if request.GET.categoria == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select" name="subcategoria">
+                            <option value="">Subcategoría</option>
+                            {% for subcat in subcategorias %}
+                                <option value="{{ subcat }}" {% if request.GET.subcategoria == subcat %}selected{% endif %}>{{ subcat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <select class="form-select" name="zona">
+                            <option value="">Zona</option>
+                            {% for z in zonas %}
+                                <option value="{{ z }}" {% if request.GET.zona == z %}selected{% endif %}>{{ z }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <select class="form-select" name="año">
+                            <option value="">Año</option>
+                            {% for a in años %}
+                                <option value="{{ a }}" {% if request.GET.año == a|stringformat:"s" %}selected{% endif %}>{{ a }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-1 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm" title="Aplicar filtros">
+                            <i class="fas fa-filter"></i>
+                        </button>
+                        <a href="{% url 'person_details' myperson.cedula %}" class="btn btn-secondary btn-sm" title="Quitar filtros">
+                            <i class="fas fa-undo"></i>
+                        </a>
+                    </div>
+                     {% if request.GET.q or request.GET.tipo_tarjeta or request.GET.categoria or request.GET.subcategoria or request.GET.zona or request.GET.año %}
+                        <div class="mt-2">
+                            <span class="badge bg-info">
+                                Filtros activos:
+                                {% if request.GET.q %}<span class="badge bg-primary">Búsqueda: {{ request.GET.q }}</span>{% endif %}
+                                {% if request.GET.tipo_tarjeta %}<span class="badge bg-primary">Tipo: {{ request.GET.tipo_tarjeta }}</span>{% endif %}
+                                {% if request.GET.categoria %}<span class="badge bg-primary">Categoría: {{ request.GET.categoria }}</span>{% endif %}
+                                {% if request.GET.subcategoria %}<span class="badge bg-primary">Subcategoría: {{ request.GET.subcategoria }}</span>{% endif %}
+                                {% if request.GET.zona %}<span class="badge bg-primary">Zona: {{ request.GET.zona }}</span>{% endif %}
+                                {% if request.GET.año %}<span class="badge bg-primary">Año: {{ request.GET.año }}</span>{% endif %}
+                            </span>
+                        </div>
+                    {% endif %}
+                </form>
+
                 {% if credit_card_transactions %}
                     <div class="table-responsive">
-                        <table class="table table-striped table-hover">
+                        <table class="table table-striped table-hover mb-0">
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
@@ -4255,7 +4647,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for transaction in credit_card_transactions %}
+                                {% for transaction in page_obj %}
                                 <tr>
                                     <td>{{ transaction.fecha_transaccion|date:"d/m/Y" }}</td>
                                     <td>{{ transaction.categoria }}</td>
@@ -4273,13 +4665,85 @@ document.addEventListener('DOMContentLoaded', function() {
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-muted text-center">No hay transacciones de tarjeta de crédito disponibles para esta persona.</p>
+                    <p class="text-muted text-center">
+                        {% if request.GET.q or request.GET.tipo_tarjeta or request.GET.categoria or request.GET.subcategoria or request.GET.zona or request.GET.año %}
+                            No hay transacciones que coincidan con los filtros.
+                        {% else %}
+                            No hay transacciones de tarjeta de crédito disponibles para esta persona.
+                        {% endif %}
+                    </p>
                 {% endif %}
             </div>
+            {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-light">
+                <nav>
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item"><a class="page-link" href="?page=1{% for key, value in all_params.items %}&{{ key }}={{ value }}{% endfor %}">&laquo;&laquo;</a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in all_params.items %}&{{ key }}={{ value }}{% endfor %}">&laquo;</a></li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><a class="page-link" href="#">{{ num }}</a></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item"><a class="page-link" href="?page={{ num }}{% for key, value in all_params.items %}&{{ key }}={{ value }}{% endfor %}">{{ num }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in all_params.items %}&{{ key }}={{ value }}{% endfor %}">&raquo;</a></li>
+                            <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in all_params.items %}&{{ key }}={{ value }}{% endfor %}">&raquo;&raquo;</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const yearlyChartData = {{ yearly_chart_data|safe }};
+    if (yearlyChartData && yearlyChartData.length > 0) {
+        const yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
+        const yearlyChart = new Chart(yearlyCtx, {
+            type: 'line', // Line chart is great for time-series data
+            data: {
+                labels: {{ yearly_chart_labels|safe }},
+                datasets: [{
+                    label: 'Número de Transacciones',
+                    data: yearlyChartData,
+                    backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(255, 159, 64, 1)',
+                    pointRadius: 4,
+                    tension: 0.1 // Makes the line slightly curved
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { 
+                    legend: { display: false } 
+                },
+                scales: { 
+                    y: { 
+                        beginAtZero: true,
+                        ticks: {
+                            // Ensure only whole numbers are shown on the y-axis
+                            stepSize: 1
+                        }
+                    } 
+                }
+            }
+        });
+    }
+});
+</script>
 
 {% endblock %}
 "@ | Out-File -FilePath "core/templates/details.html" -Encoding utf8

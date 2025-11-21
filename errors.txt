@@ -3,5 +3,3 @@ filtrar por columna
 Visulizacion de Tarjetas por Categoria por Ano
 Visualizacion Area por Ano
 Visualizacion de Persona: por subcategoria el numero de usos
-Corregir tildes
-Anadir columna ano
