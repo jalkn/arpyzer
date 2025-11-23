@@ -1514,12 +1514,11 @@ def delete_comment(request, cedula, comment_index):
 
 def import_tcs(request):
     if request.method == 'POST':
-        pdf_files = request.FILES.getlist('visa_pdf_files')
-        clara_pdf_files = request.FILES.getlist('clara_pdf_files') # New line for Clara files
-        pdf_password = request.POST.get('visa_pdf_password', '')
+        pdf_files = request.FILES.getlist('tcs_pdf_files') # Changed to a single input name
+        pdf_password = request.POST.get('tcs_pdf_password', '')
 
         # Check if at least one file type was uploaded
-        if not pdf_files and not clara_pdf_files:
+        if not pdf_files:
             messages.error(request, 'No se seleccionaron archivos PDF.', extra_tags='import_tcs')
             return redirect('import')
 
@@ -1537,7 +1536,7 @@ def import_tcs(request):
 
         files_saved = 0
         # Combine both lists of files to save them
-        for pdf_file in pdf_files + clara_pdf_files:
+        for pdf_file in pdf_files:
             file_path = os.path.join(input_pdf_dir, pdf_file.name)
             try:
                 with open(file_path, 'wb+') as destination:
@@ -1769,9 +1768,12 @@ Set-Content -Path "core/tcs.py" -Value @"
 import os
 import re
 import fitz
+import PyPDF2
 import pdfplumber
 import pandas as pd
 from datetime import datetime
+import locale
+import unicodedata
 
 # --- Configuration (can be modified by views.py) ---
 categorias_file = "" # Will be set dynamically
@@ -1953,6 +1955,10 @@ visa_pattern_transaccion = re.compile(
 )
 visa_pattern_tarjeta = re.compile(r"TARJETA:\s+\*{12}(\d{4})")
 
+# --- Regex for Clara ---
+clara_card_block_pattern = re.compile(r'(Tarjeta\s+\*\s*\d{4}.*?)(?=Tarjeta\s+\*|\Z)', re.IGNORECASE | re.DOTALL)
+clara_card_details_pattern = re.compile(r'Tarjeta\s+\*\s*(\d{4})\s+·\s+(Virtual|Física)\s+(.*?)\s+·\s+ID\s+\d{8}', re.IGNORECASE | re.DOTALL)
+clara_transaction_line_pattern = re.compile(r'(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2})\s+(.*?)\s+(\d{6})\s*(\$?\s*[\d\.,]+)\s*(\$?\s*[\d\.,]+)?\s*(\bUSD\b|\bEUR\b|\bPEN\b)?', re.IGNORECASE | re.MULTILINE)
 
 # Modified to accept base_dir, input_folder, and output_folder
 def run_pdf_processing(base_dir, input_folder, output_folder):
@@ -1981,6 +1987,7 @@ def run_pdf_processing(base_dir, input_folder, output_folder):
                 # Use file name to determine card type
                 card_type_is_mc = "MC" in archivo.upper() or "MASTERCARD" in archivo.upper()
                 card_type_is_visa = "VISA" in archivo.upper()
+                card_type_is_clara = "CLARA" in archivo.upper()
 
                 if card_type_is_mc:
                     print(f"📄 Procesando Mastercard: {archivo}")
@@ -2178,6 +2185,79 @@ def run_pdf_processing(base_dir, input_folder, output_folder):
 
                     except Exception as e:
                         print(f"⚠️ Error al procesar Visa '{archivo}': {e}")
+                
+                elif card_type_is_clara:
+                    print(f"📄 Procesando Clara: {archivo}")
+                    try:
+                        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+                    except locale.Error:
+                        try:
+                            locale.setlocale(locale.LC_TIME, 'es_ES')
+                        except locale.Error:
+                            pass
+
+                    try:
+                        with open(ruta_pdf, 'rb') as file:
+                            reader = PyPDF2.PdfReader(file)
+                            for page_number, page in enumerate(reader.pages, 1):
+                                full_text = page.extract_text()
+                                card_blocks = clara_card_block_pattern.findall(full_text)
+
+                                for block_text in card_blocks:
+                                    card_details = clara_card_details_pattern.search(block_text)
+                                    if card_details:
+                                        card_number = card_details.group(1)
+                                        card_type = card_details.group(2)
+                                        cardholder_name = card_details.group(3).strip()
+                                        
+                                        transactions = clara_transaction_line_pattern.findall(block_text)
+                                        
+                                        if not transactions:
+                                            # Add entry for cards with no transactions
+                                            all_resultados.append({
+                                                "Archivo": archivo, "Tipo de Tarjeta": f"Clara {card_type}", "Tarjetahabiente": cardholder_name,
+                                                "Número de Tarjeta": card_number, "Moneda": "", "TRM Cierre": "1", "Valor Original": "",
+                                                "Número de Autorización": "Sin transacciones", "Fecha de Transacción": "", "Descripción": "",
+                                                "Tasa Pactada": "", "Tasa EA Facturada": "", "Cargos y Abonos": "", "Saldo a Diferir": "",
+                                                "Cuotas": "", "Página": page_number,
+                                            })
+
+                                        for transaction in transactions:
+                                            date_str, description, auth_num, primary_value, secondary_value, moneda = transaction
+                                            
+                                            moneda = moneda.strip() if moneda else "COP"
+                                            valor_cop = primary_value.strip()
+                                            valor_original = secondary_value.strip() if secondary_value and (moneda != "COP") else primary_value.strip()
+
+                                            try:
+                                                date_obj = datetime.strptime(date_str.strip(), '%d %b %y')
+                                                fecha_transaccion = date_obj.date()
+                                            except ValueError:
+                                                fecha_transaccion = None
+
+                                            tipo_cambio = obtener_trm(fecha_transaccion) if moneda == "USD" else ""
+                                            trm_cierre_value = formato_excel(str(tipo_cambio)) if tipo_cambio else "1"
+
+                                            all_resultados.append({
+                                                "Archivo": archivo,
+                                                "Tipo de Tarjeta": f"Clara {card_type}",
+                                                "Tarjetahabiente": cardholder_name,
+                                                "Número de Tarjeta": card_number,
+                                                "Moneda": moneda,
+                                                "TRM Cierre": trm_cierre_value,
+                                                "Valor Original": formato_excel(valor_original),
+                                                "Número de Autorización": auth_num.strip(),
+                                                "Fecha de Transacción": fecha_transaccion,
+                                                "Descripción": description.strip(),
+                                                "Tasa Pactada": "", "Tasa EA Facturada": "", "Cargos y Abonos": "",
+                                                "Saldo a Diferir": "", "Cuotas": "", "Página": page_number,
+                                            })
+
+                    except PyPDF2.errors.PdfReadError as e:
+                        print(f"⚠️ Error: No se pudo leer '{archivo}'. El archivo puede estar corrupto o encriptado. Error: {e}")
+                    except Exception as e:
+                        print(f"⚠️ Error inesperado procesando Clara '{archivo}': {e}")
+
                 else:
                     print(f"⏩ Archivo '{archivo}' no reconocido como Mastercard o Visa. Saltando.")
 
@@ -3663,13 +3743,13 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                 <form method="post" enctype="multipart/form-data" action="{% url 'import_tcs' %}">
                     {% csrf_token %}
                     <div class="upload-form mb-2">
-                        <input type="file" class="form-control form-control-sm" name="visa_pdf_files" multiple accept=".pdf" required>
+                        <input type="file" class="form-control form-control-sm" name="tcs_pdf_files" multiple accept=".pdf" required>
                         <button type="submit" class="btn btn-secondary btn-sm upload-btn" title="Subir archivo">
                             <i class="fas fa-upload"></i>
                         </button>
                     </div>
                     <div class="upload-form">
-                        <input type="password" class="form-control form-control-sm" name="visa_pdf_password" placeholder="Clave (opcional)">
+                        <input type="password" class="form-control form-control-sm" name="tcs_pdf_password" placeholder="Clave (opcional)">
                     </div>
                 </form>
             </div>
@@ -4250,6 +4330,11 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                                 Zona
                             </a>
                         </th>
+                        <th>
+                            <a href="?{% for key, value in all_params.items %}{{ key }}={{ value }}&{% endfor %}order_by=archivo&sort_direction={% if current_order == 'archivo' and current_direction == 'asc' %}desc{% else %}asc{% endif %}" style="text-decoration: none; color: rgb(0, 0, 0);">
+                                Archivo
+                            </a>
+                        </th>
                         <th class="table-fixed-column" style="color: rgb(0, 0, 0);">Ver</th>
                     </tr>
                 </thead>
@@ -4274,6 +4359,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                             <td>{{ transaction.categoria }}</td> 
                             <td>{{ transaction.subcategoria }}</td>
                             <td>{{ transaction.zona }}</td>
+                            <td>{{ transaction.archivo }}</td>
                             <td class="table-fixed-column">
                                 {% if transaction.person and transaction.person.cedula %}
                                     <a href="{% url 'person_details' transaction.person.cedula %}"
@@ -4288,7 +4374,7 @@ $jsContent | Out-File -FilePath "core/static/js/freeze_columns.js" -Encoding utf
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="18" class="text-center py-4" id="no-results-row">
+                            <td colspan="19" class="text-center py-4" id="no-results-row">
                                 {% if request.GET.q or request.GET.tipo_tarjeta or request.GET.categoria or request.GET.subcategoria or request.GET.zona or request.GET.cargo or request.GET.compania or request.GET.area or request.GET.moneda or request.GET.dia or request.GET.año or request.GET.numero_tarjeta %}
                                     Sin transacciones TC que coincidan con los filtros.
                                 {% else %}
