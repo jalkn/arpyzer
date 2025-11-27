@@ -11,13 +11,17 @@ function arpa {
 
     # Create python3 virtual environment
     python3 -m venv .venv
-    .\.venv\scripts\activate
+
+    if ($isWindows) {
+        .\.venv\scripts\activate
+    } else {
+        . ./.venv/bin/Activate.ps1
+    }
 
     # Install required python3 packages
     python3 -m pip install --upgrade pip
-    python3 -m pip install pyinstaller django whitenoise django-bootstrap-v5 xlsxwriter openpyxl pandas xlrd>=2.0.1 pdfplumber PyMuPDF msoffcrypto-tool fuzzywuzzy python-Levenshtein psycopg2-binary
-    python3 -m pip install pyinstaller django whitenoise django-bootstrap-v5 xlsxwriter openpyxl pandas xlrd>=2.0.1 pdfplumber PyMuPDF msoffcrypto-tool fuzzywuzzy python-Levenshtein
-
+    python3 -m pip install pyinstaller django whitenoise django-bootstrap-v5 xlsxwriter openpyxl pandas xlrd>=2.0.1 pdfplumber PyMuPDF msoffcrypto-tool fuzzywuzzy python-Levenshtein psycopg2-binary PyPDF2
+    
     # Create Django project
     django-admin startproject arpa
     cd arpa
@@ -1958,7 +1962,7 @@ visa_pattern_tarjeta = re.compile(r"TARJETA:\s+\*{12}(\d{4})")
 # --- Regex for Clara ---
 clara_card_block_pattern = re.compile(r'(Tarjeta\s+\*\s*\d{4}.*?)(?=Tarjeta\s+\*|\Z)', re.IGNORECASE | re.DOTALL)
 clara_card_details_pattern = re.compile(r'Tarjeta\s+\*\s*(\d{4})\s+·\s+(Virtual|Física)\s+(.*?)\s+·\s+ID\s+\d{8}', re.IGNORECASE | re.DOTALL)
-clara_transaction_line_pattern = re.compile(r'(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2})\s+(.*?)\s+(\d{6})\s*(\$?\s*[\d\.,]+)\s*(\$?\s*[\d\.,]+)?\s*(\bUSD\b|\bEUR\b|\bPEN\b)?', re.IGNORECASE | re.MULTILINE)
+clara_transaction_line_pattern = re.compile(r'(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2})\s+(.*?)\s+(\d{6})\s*(\`$?\s*[\d\.,]+)\s*(\`$?\s*[\d\.,]+)?\s*(\bUSD\b|\bEUR\b|\bPEN\b)?', re.IGNORECASE | re.MULTILINE)
 
 # Modified to accept base_dir, input_folder, and output_folder
 def run_pdf_processing(base_dir, input_folder, output_folder):
@@ -2469,8 +2473,8 @@ def extract_and_parse_data(pdf_path):
                             r'(\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{2})\s+' # 1: Date
                             r'(.*?)\s+'                                                              # 2: Description
                             r'(\d{6})\s*'                                                            # 3: Auth Num (6 digits)
-                            r'(\$?\s*[\d\.,]+)\s*'                                                   # 4: Value A (COP Value - Primary)
-                            r'(\$?\s*[\d\.,]+)?\s*'                                                  # 5: Value B (Secondary value, either COP or Foreign)
+                            r'(`$?\s*[\d\.,]+)\s*'                                                   # 4: Value A (COP Value - Primary)
+                            r'(`$?\s*[\d\.,]+)?\s*'                                                  # 5: Value B (Secondary value, either COP or Foreign)
                             r'(\bUSD\b|\bEUR\b|\bPEN\b)?',                                            # 6: Currency (optional)
                             re.IGNORECASE | re.MULTILINE
                         )
